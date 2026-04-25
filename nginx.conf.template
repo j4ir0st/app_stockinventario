@@ -1,0 +1,41 @@
+server {
+    listen 80;
+
+    # Raíz del servidor
+    root /usr/share/nginx/html;
+
+    # Comprimir respuestas para mejor rendimiento
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    # Proxy inverso para la API (mismo origen para evitar CORS)
+    location ^~ /api-proxy/ {
+        # El backend se resuelve dinámicamente mediante la variable de entorno
+        proxy_pass ${API_URL};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        # Opcional: Ajustar el path si el backend no espera '/api-proxy/'
+        rewrite ^/api-proxy/(.*)$ /$1 break;
+    }
+
+    # Servir la aplicación Angular bajo /app_stockinventario/
+    location /app_stockinventario/ {
+        alias /usr/share/nginx/html/app_stockinventario/;
+        try_files $uri $uri/ /app_stockinventario/index.html;
+    }
+
+    # Redirigir la raíz hacia /app_stockinventario/
+    location = / {
+        return 301 /app_stockinventario/;
+    }
+
+    # Caché para assets estáticos
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, no-transform";
+        access_log off;
+    }
+}

@@ -1,0 +1,82 @@
+<div class="inventory-container" [class.dark-mode]="themeService.currentTheme() === 'dark'">
+  <div class="inventory-wrapper">
+    <div class="page-header">
+      <div class="header-info">
+        <h2>Stock Aprobado</h2>
+        <p>Vea y administre el stock disponible en tiempo real.</p>
+      </div>
+      
+      <!-- Paginación Superior -->
+      <div class="pagination-controls">
+        <button class="btn-page" (click)="prevPage()" [disabled]="!prevUrl() || loading()">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <span class="page-info">Total: <strong>{{ totalCount() }}</strong> registros</span>
+        <button class="btn-page" (click)="nextPage()" [disabled]="!nextUrl() || loading()">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="search-box">
+      <div class="input-wrapper">
+        <i class="fas fa-search search-icon"></i>
+        <input 
+          type="text" 
+          [ngModel]="searchTerm()"
+          (ngModelChange)="searchTerm.set($event)"
+          (keyup.enter)="buscar()"
+          placeholder="Buscar por descripción o código de producto...">
+      </div>
+      <button class="btn-search" (click)="buscar()" [disabled]="loading()">
+        {{ loading() ? 'BUSCANDO...' : 'BUSCAR' }}
+      </button>
+    </div>
+
+    <div class="table-container">
+      <table class="stock-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>PROD ID</th>
+            <th>DISPONIBLE</th>
+            <th>IMPORTACION</th>
+            <th>ACONDICIONADO</th>
+            <th>REESTERILIZADO</th>
+            <th>OBSERVADOS</th>
+            <th>CONSIGNACION</th>
+            <th>VENTA SUJETA</th>
+            <th>STOCK</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of stockItems(); track item.id) {
+            <tr>
+              <td>{{ item.id }}</td>
+              <td class="prod-id">{{ item.prod_id }}</td>
+              <td>{{ item.disponible }}</td>
+              <td>{{ item.importacion }}</td>
+              <td>{{ item.acondicionado }}</td>
+              <td>{{ item.reesterilizado }}</td>
+              <td>{{ item.observados }}</td>
+              <td>{{ item.consignacion }}</td>
+              <td>{{ item.venta_sujeta }}</td>
+              <td>
+                <span class="badge" [class.badge-stock]="(item.stock_total || item.stock) > 0">
+                  {{ item.stock_total || item.stock }}
+                </span>
+              </td>
+            </tr>
+          }
+          @if (stockItems().length === 0 && !loading()) {
+            <tr>
+              <td colspan="10" class="no-results">
+                No se encontraron productos que coincidan con la búsqueda.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
