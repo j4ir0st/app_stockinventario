@@ -1,14 +1,22 @@
 .main-header {
     height: 70px;
-    background: #417690;
-    /* Azul petróleo/verdoso solicitado */
+    background: #e3f2fd;
+    /* Azul pálido para modo claro */
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 2rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     z-index: 100;
-    color: white;
+    transition: all 0.3s ease;
+    border-bottom: 1px solid #d0e4ff;
+}
+
+.main-header.dark-mode {
+    background: #417690;
+    /* Azul petróleo original para modo oscuro */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    border-bottom: 1px solid #417690;
 }
 
 .theme-toggle {
@@ -20,14 +28,25 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
+    background: #bbdefb;
+    /* Fondo armonizado para modo claro */
+    color: #007bff;
     transition: all 0.2s;
     font-size: 1.2rem;
 }
 
+.main-header.dark-mode .theme-toggle {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
 .theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--primary-soft);
     transform: scale(1.1);
+}
+
+.main-header.dark-mode .theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .header-left {
@@ -45,12 +64,28 @@
 .title-section h2 {
     margin: 0;
     padding: 0;
-    color: var(--text-color);
     font-size: 1.54rem;
     font-weight: 900;
     text-transform: uppercase;
     letter-spacing: -1px;
     line-height: 1;
+}
+
+.stock-text {
+    color: #007bff;
+    /* Azul del sidebar */
+    transition: color 0.3s ease;
+}
+
+.inventario-text {
+    color: #417690;
+    /* Azul del header original */
+    transition: color 0.3s ease;
+}
+
+.main-header.dark-mode .stock-text,
+.main-header.dark-mode .inventario-text {
+    color: white;
 }
 
 .title-section .subtitle {
@@ -74,16 +109,25 @@
 
 .user-profile {
     display: flex;
-    align-items: right;
+    align-items: center;
     gap: 0.4rem;
     padding: 0.5rem 1.2rem;
     border-radius: 32px;
     cursor: pointer;
     transition: all 0.2s ease;
+    background: #bbdefb;
+    /* Fondo armonizado para modo claro */
+}
+
+.main-header.dark-mode .user-profile {
     background: rgba(255, 255, 255, 0.1);
 }
 
 .user-profile:hover {
+    background: var(--primary-soft);
+}
+
+.main-header.dark-mode .user-profile:hover {
     background: rgba(255, 255, 255, 0.2);
 }
 
@@ -96,6 +140,11 @@
 .user-name {
     font-size: 0.875rem;
     font-weight: 600;
+    color: #2c3e50;
+    /* Texto oscuro para modo claro */
+}
+
+.main-header.dark-mode .user-name {
     color: var(--white);
 }
 

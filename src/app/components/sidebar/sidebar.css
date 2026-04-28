@@ -66,6 +66,21 @@
     white-space: nowrap;
 }
 
+.sidebar-nav {
+    flex-shrink: 0;
+}
+
+.sidebar-spacer {
+    flex-grow: 1;
+}
+
+.sidebar-footer {
+    flex-shrink: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+}
+
 nav ul {
     list-style: none;
     padding: 0;
@@ -105,8 +120,8 @@ nav li.active {
 }
 
 .icon-container {
-    min-width: 42px;
-    height: 42px;
+    min-width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;

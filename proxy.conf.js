@@ -8,13 +8,14 @@ console.log('------------------------------');
 const PROXY_CONFIG = [
   {
     context: [
-      "/api-proxy"
+      "/api",
+      "/StockAprobado"
     ],
     target: process.env.API_URL,
     secure: true,
     changeOrigin: true,
     pathRewrite: {
-      "^/api-proxy": ""
+      "^/api-proxy": "" // Mantenido por compatibilidad si se usa accidentalmente
     },
     logLevel: "debug"
   }

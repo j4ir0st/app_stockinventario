@@ -18,7 +18,7 @@ export class ApiService {
    * Obtiene la base de la URL de la API desde el servicio de configuración.
    */
   private get baseUrl(): string {
-    return this.configService.apiUrl();
+    return this.fixUrl(this.configService.apiUrl());
   }
 
   /**
@@ -43,11 +43,11 @@ export class ApiService {
   }
 
   /**
-   * Obtiene el stock aprobado de forma general (con o sin búsqueda genérica).
+   * Obtiene el stock aprobado de forma general.
    */
   getStockAprobado(urlOrSearch?: string): Observable<any> {
-    if (urlOrSearch && (urlOrSearch.startsWith('http') || urlOrSearch.includes('/api-proxy/'))) {
-      const urlNormalizada = urlOrSearch.startsWith('http') ? this.fixUrl(urlOrSearch) : urlOrSearch;
+    if (urlOrSearch && (urlOrSearch.includes('StockAprobado') || urlOrSearch.includes('/api/'))) {
+      const urlNormalizada = this.fixUrl(urlOrSearch);
       return this.http.get<any>(urlNormalizada);
     }
 
@@ -56,12 +56,33 @@ export class ApiService {
   }
 
   /**
+   * Obtiene el inventario de almacenaje filtrando por un campo específico.
+   */
+  getStockInventarioConFiltro(filtro: string, valor: string): Observable<any> {
+    const params = new HttpParams().set(filtro, valor);
+    return this.get('StockInventario/', params);
+  }
+
+  /**
+   * Obtiene el inventario de almacenaje de forma general.
+   */
+  getStockInventario(urlOrSearch?: string): Observable<any> {
+    if (urlOrSearch && (urlOrSearch.includes('StockInventario') || urlOrSearch.includes('/api/'))) {
+      const urlNormalizada = this.fixUrl(urlOrSearch);
+      return this.http.get<any>(urlNormalizada);
+    }
+
+    let params = new HttpParams();
+    return this.get('StockInventario/', params);
+  }
+
+  /**
    * Ajusta una URL absoluta (del backend) para que use el proxy local '/api-proxy/'.
    * Esto evita problemas de CORS y "localhost" en desarrollo y producción.
    */
   private fixUrl(url: string): string {
     if (!url) return '';
-    // Reemplaza el dominio y puerto por la ruta base del proxy configurada
-    return url.replace(/^https?:\/\/[^\/]+/, this.baseUrl.replace(/\/$/, ''));
+
+    return url.replace(/^https?:\/\/[^\/]+/, '');
   }
 }

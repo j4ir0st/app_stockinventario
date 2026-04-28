@@ -16,9 +16,30 @@
     <div class="nav-section">MENÚ DE OPCIONES</div>
   }
   
-  <nav>
+  <nav class="sidebar-nav">
     <ul>
       @for (item of menuItems; track item.label) {
+        <li [routerLink]="item.route" routerLinkActive="active" [title]="item.label">
+          <div class="icon-container">
+            @if (item.isAsset) {
+              <img [src]="item.icon" [alt]="item.label" class="menu-icon-asset">
+            } @else {
+              <i [class]="item.icon + ' menu-icon-fa'"></i>
+            }
+          </div>
+          @if (!sidebarService.isCollapsed()) {
+            <span>{{ item.label }}</span>
+          }
+        </li>
+      }
+    </ul>
+  </nav>
+
+  <div class="sidebar-spacer"></div>
+
+  <nav class="sidebar-footer">
+    <ul>
+      @for (item of footerItems; track item.label) {
         <li [routerLink]="item.route" routerLinkActive="active" [title]="item.label">
           <div class="icon-container">
             @if (item.isAsset) {

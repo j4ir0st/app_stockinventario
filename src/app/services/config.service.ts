@@ -6,7 +6,7 @@ import { Injectable, signal } from '@angular/core';
 export class ConfigService {
   // Usamos el patrón de proxy inverso para mayor seguridad y consistencia
   // Tanto Nginx como Angular Proxy redirigirán '/api-proxy/' al backend real
-  private readonly apiBase = signal('/api-proxy/');
+  private readonly apiBase = signal(window.location.origin + '/');
 
   /**
    * Expone la URL base de la API.

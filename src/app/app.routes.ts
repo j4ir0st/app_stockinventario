@@ -23,6 +23,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/inventory/inventory').then(m => m.InventoryComponent)
   },
   {
+    path: 'storage',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/storage/storage').then(m => m.StorageComponent)
+  },
+  {
     path: '**',
     redirectTo: 'inventory'
   }

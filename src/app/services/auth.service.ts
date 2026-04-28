@@ -12,7 +12,7 @@ export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
   private configService = inject(ConfigService);
-  
+
   // Señales reactivas para el estado del usuario
   currentUser = signal<User | null>(null);
   isAuthenticated = signal<boolean>(false);
@@ -35,7 +35,7 @@ export class AuthService {
   async login(username: string, password: string): Promise<void> {
     try {
       const response = await firstValueFrom(
-        this.http.post<AuthResponse>('/api-proxy/api/token/', { username, password })
+        this.http.post<AuthResponse>(`${this.configService.apiUrl()}api/token/`, { username, password })
       );
 
       if (response && response.access) {
@@ -54,10 +54,10 @@ export class AuthService {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh');
     localStorage.removeItem('user');
-    
+
     this.currentUser.set(null);
     this.isAuthenticated.set(false);
-    
+
     this.router.navigate(['/login']);
   }
 
@@ -66,12 +66,11 @@ export class AuthService {
    */
   private saveSession(data: AuthResponse): void {
     console.log('Saving session with data:', data);
-    
+
     // Corregir ruta del avatar usando la variable API_URL para evitar hardcodeo de dominios
     if (data.user.avatar && !data.user.avatar.startsWith('http')) {
-      const baseUrl = this.configService.API_URL().replace(/\/$/, ''); 
       const avatarPath = data.user.avatar.startsWith('/') ? data.user.avatar : `/${data.user.avatar}`;
-      data.user.avatar = `${baseUrl}${avatarPath}`;
+      data.user.avatar = `${avatarPath}`;
     }
 
     localStorage.setItem('token', data.access);

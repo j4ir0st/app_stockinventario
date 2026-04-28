@@ -6,23 +6,24 @@
         <div class="input-wrapper">
           <i class="fas fa-search search-icon"></i>
           <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" (keyup.enter)="buscar()"
-            placeholder="Buscar código...">
+            placeholder="Buscar código en almacenaje...">
         </div>
         <button class="btn-search" (click)="buscar()" [disabled]="loading()">
           <i class="fas" [ngClass]="loading() ? 'fa-spinner fa-spin' : 'fa-search'"></i>
         </button>
-        <button class="btn-excel" (click)="descargarExcel()" [disabled]="loadingExport()" title="Descargar Todo en Excel">
+        <button class="btn-excel" (click)="descargarExcel()" [disabled]="loadingExport()"
+          title="Descargar Todo en Excel">
           @if (loadingExport()) {
-            <i class="fas fa-spinner fa-spin"></i>
+          <i class="fas fa-spinner fa-spin"></i>
           } @else {
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="8" y1="13" x2="16" y2="13"/>
-              <line x1="8" y1="17" x2="16" y2="17"/>
-              <line x1="10" y1="9" x2="8" y2="9"/>
-            </svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="8" y1="13" x2="16" y2="13" />
+            <line x1="8" y1="17" x2="16" y2="17" />
+            <line x1="10" y1="9" x2="8" y2="9" />
+          </svg>
           }
         </button>
       </div>
@@ -44,18 +45,13 @@
           <tr>
             <th>CÓDIGO</th>
             <th>DESCRIPCIÓN</th>
-            <th>DISPONIBLE</th>
-            <th>IMPORTACION</th>
-            <th>ACONDICIONADO</th>
-            <th>REESTERILIZADO</th>
-            <th>OBSERVADOS</th>
-            <th>CONSIGNACION</th>
-            <th>VENTA SUJETA</th>
+            <th>ALMACENAJE</th>
+            <th>PROVEEDOR</th>
             <th>STOCK</th>
           </tr>
         </thead>
         <tbody>
-          @for (item of stockItems(); track item.prod_id?.codigo) {
+          @for (item of stockItems(); track item.url) {
           <tr>
             <td>
               <div class="prod-code">{{ item.prod_id?.tipo ? item.prod_id.tipo.trim() + ':' : '' }}{{
@@ -64,25 +60,21 @@
             <td>
               <div class="prod-desc">{{ item.prod_id?.descripcion }}</div>
             </td>
-            <td>{{ item.disponible }}</td>
-            <td>{{ item.importacion }}</td>
-            <td>{{ item.acondicionado }}</td>
-            <td>{{ item.reesterilizado }}</td>
-            <td>{{ item.observados }}</td>
-            <td>{{ item.consignacion }}</td>
-            <td>{{ item.venta_sujeta }}</td>
+            <td>{{ item.almacenaje }}</td>
             <td>
-              <span class="badge" [class.badge-danger]="(item.stock_total || item.stock) <= 0"
-                [class.badge-warning]="(item.stock_total || item.stock) >= 1 && (item.stock_total || item.stock) <= 4"
-                [class.badge-success]="(item.stock_total || item.stock) >= 5">
-                {{ (item.stock_total || item.stock) < 0 ? 0 : (item.stock_total || item.stock) }} </span>
+              <div class="prod-desc">{{ item.prod_id?.prov_id }}</div>
+            </td>
+            <td>
+              <span class="badge" [class.badge-danger]="item.stock <= 0"
+                [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
+                {{ item.stock < 0 ? 0 : item.stock }} </span>
             </td>
           </tr>
           }
           @if (stockItems().length === 0 && !loading()) {
           <tr>
-            <td colspan="10" class="no-results">
-              No se encontraron productos que coincidan con la búsqueda.
+            <td colspan="5" class="no-results">
+              No se encontraron productos que coincidan con la búsqueda en almacenaje.
             </td>
           </tr>
           }

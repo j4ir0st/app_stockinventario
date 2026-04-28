@@ -4,19 +4,17 @@ import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { forkJoin, of } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { ConfigService } from '../../services/config.service';
 import { ApiService } from '../../services/api.service';
 import { ThemeService } from '../../services/theme.service';
 
 @Component({
-  selector: 'app-inventory',
+  selector: 'app-storage',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './inventory.html',
-  styleUrl: './inventory.css'
+  templateUrl: './storage.html',
+  styleUrl: './storage.css'
 })
-export class InventoryComponent implements OnInit {
-  private configService = inject(ConfigService);
+export class StorageComponent implements OnInit {
   private apiService = inject(ApiService);
   public themeService = inject(ThemeService);
 
@@ -42,30 +40,25 @@ export class InventoryComponent implements OnInit {
    * @param url URL opcional para paginación (next/prev).
    */
   cargarStock(url?: string): void {
-    console.log('CargarStock - Estado inicial:', {
-      loading: this.loading(),
-      itemsCount: this.stockItems().length
-    });
-
     this.loading.set(true);
     this.stockItems.set([]);
 
     const search = url || this.searchTerm();
 
     // Si es una URL de paginación, hacemos una sola llamada
-    if (search.startsWith('http') || search.includes('StockAprobado')) {
-      this.apiService.getStockAprobado(search).subscribe({
+    if (search.startsWith('http') || search.includes('StockInventario')) {
+      this.apiService.getStockInventario(search).subscribe({
         next: (data) => this.procesarResultados(data),
         error: (err) => this.manejarError(err)
       });
       return;
     }
 
-    // Si es una búsqueda por texto, realizamos peticiones (probando solo con código por ahora)
+    // Si es una búsqueda por texto, realizamos peticiones combinadas
     if (search.trim() !== '') {
-      const p1 = this.apiService.getStockAprobadoConFiltro('prod_id__codigo__contains', search).pipe(catchError(() => of({ results: [] })));
-      const p2 = this.apiService.getStockAprobadoConFiltro('prod_id__descripcion__contains', search).pipe(catchError(() => of({ results: [] })));
-      const p3 = this.apiService.getStockAprobadoConFiltro('prod_id__tipo__contains', search).pipe(catchError(() => of({ results: [] })));
+      const p1 = this.apiService.getStockInventarioConFiltro('prod_id__codigo__contains', search).pipe(catchError(() => of({ results: [] })));
+      const p2 = this.apiService.getStockInventarioConFiltro('prod_id__descripcion__contains', search).pipe(catchError(() => of({ results: [] })));
+      const p3 = this.apiService.getStockInventarioConFiltro('prod_id__tipo__contains', search).pipe(catchError(() => of({ results: [] })));
 
       forkJoin([p1, p2, p3]).subscribe({
         next: (responses: any[]) => {
@@ -84,7 +77,7 @@ export class InventoryComponent implements OnInit {
       });
     } else {
       // Carga inicial sin filtros
-      this.apiService.getStockAprobado().subscribe({
+      this.apiService.getStockInventario().subscribe({
         next: (data) => this.procesarResultados(data),
         error: (err) => this.manejarError(err)
       });
@@ -92,10 +85,10 @@ export class InventoryComponent implements OnInit {
   }
 
   private procesarResultados(data: any): void {
-    console.log('Procesando resultados:', data);
+    console.log('Procesando resultados StockInventario:', data);
     let results = data.results || (Array.isArray(data) ? data : []);
 
-    // Distinct robusto por ID, URL o combinación única (evita tabla vacía si 'id' falta)
+    // Distinct robusto por ID, URL o combinación única
     const uniqueItems = results.filter((item: any, index: number, self: any[]) => {
       const uniqueKey = item.url || ((item.prod_id?.codigo || '') + '-' + (item.prod_id?.tipo || ''));
       return uniqueKey && index === self.findIndex((t: any) =>
@@ -108,27 +101,19 @@ export class InventoryComponent implements OnInit {
     this.prevUrl.set(data.previous || null);
     this.totalCount.set(data.count || uniqueItems.length);
     this.loading.set(false);
-    console.log('Carga finalizada. Items:', uniqueItems.length);
   }
 
   private manejarError(err: any): void {
-    console.error('Error en cargarStock:', err);
+    console.error('Error en cargarStockInventario:', err);
     this.loading.set(false);
-    this.generarDatosDemo();
   }
 
-  /**
-   * Navega a la página siguiente.
-   */
   nextPage(): void {
     if (this.nextUrl()) {
       this.cargarStock(this.nextUrl()!);
     }
   }
 
-  /**
-   * Navega a la página anterior.
-   */
   prevPage(): void {
     if (this.prevUrl()) {
       this.cargarStock(this.prevUrl()!);
@@ -137,38 +122,31 @@ export class InventoryComponent implements OnInit {
 
   /**
    * Descarga todos los registros de la búsqueda actual en un archivo Excel.
-   * Itera sobre todas las páginas disponibles para obtener la data completa.
    */
   async descargarExcel() {
     if (this.loadingExport()) return;
 
     this.loadingExport.set(true);
-    console.log('Iniciando exportación a Excel...');
+    console.log('Iniciando exportación a Excel (Almacenaje)...');
 
     try {
       let allData: any[] = [];
       let nextUrl: string | null = null;
 
-      // Determinar la primera URL de carga según la búsqueda actual
       const search = this.searchTerm();
-
-      // Primera llamada
       let response: any;
       if (search.trim() !== '') {
-        // Si hay búsqueda, usamos el filtro por código como base para el excel completo
-        response = await this.apiService.getStockAprobadoConFiltro('prod_id__codigo__contains', search).toPromise();
+        response = await this.apiService.getStockInventarioConFiltro('prod_id__codigo__contains', search).toPromise();
       } else {
-        response = await this.apiService.getStockAprobado().toPromise();
+        response = await this.apiService.getStockInventario().toPromise();
       }
 
       if (response) {
         allData = [...(response.results || response)];
         nextUrl = response.next || null;
 
-        // Seguir cargando mientras haya páginas (recursión/bucle)
         while (nextUrl) {
-          console.log('Cargando siguiente página para Excel:', nextUrl);
-          const nextResp: any = await this.apiService.getStockAprobado(nextUrl).toPromise();
+          const nextResp: any = await this.apiService.getStockInventario(nextUrl).toPromise();
           if (nextResp) {
             allData = [...allData, ...(nextResp.results || nextResp)];
             nextUrl = nextResp.next || null;
@@ -179,7 +157,6 @@ export class InventoryComponent implements OnInit {
       }
 
       if (allData.length > 0) {
-        // Aplicar distinct robusto para consistencia con la tabla
         allData = allData.filter((item: any, index: number, self: any[]) => {
           const uniqueKey = item.url || ((item.prod_id?.codigo || '') + '-' + (item.prod_id?.tipo || ''));
           return uniqueKey && index === self.findIndex((t: any) =>
@@ -198,26 +175,17 @@ export class InventoryComponent implements OnInit {
       const dataToExport = allData.map(item => ({
         'CÓDIGO': (item.prod_id?.tipo ? item.prod_id.tipo.trim() + ':' : '') + (item.prod_id?.codigo || ''),
         'DESCRIPCIÓN': item.prod_id?.descripcion || '',
-        'DISPONIBLE': item.disponible || 0,
-        'IMPORTACION': item.importacion || 0,
-        'ACONDICIONADO': item.acondicionado || 0,
-        'REESTERILIZADO': item.reesterilizado || 0,
-        'OBSERVADOS': item.observados || 0,
-        'CONSIGNACION': item.consignacion || 0,
-        'VENTA SUJETA': item.venta_sujeta || 0,
-        'STOCK TOTAL': item.stock_total || item.stock || 0
+        'TIPO ALMACENAJE': item.tipo_almacenaje || '',
+        'ALMACENAJE': item.almacenaje || '',
+        'STOCK': item.stock || 0
       }));
 
-      // Crear el libro de Excel
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Inventario');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Almacenaje');
 
-      // Generar el archivo y descargarlo
-      const fileName = `Stock_Inventario_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `Stock_Almacenaje_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, fileName);
-
-      console.log('Exportación completada con', allData.length, 'registros.');
     } catch (error) {
       console.error('Error exportando a Excel:', error);
       alert('Error al generar el archivo Excel');
@@ -226,51 +194,7 @@ export class InventoryComponent implements OnInit {
     }
   }
 
-  /**
-   * Realiza la búsqueda de productos.
-   */
   buscar(): void {
-    console.log('Botón buscar clickeado. Término:', this.searchTerm());
     this.cargarStock();
-  }
-
-  /**
-   * Genera datos de prueba para cuando no hay conexión con el servidor o errores.
-   */
-  private generarDatosDemo(): void {
-    this.stockItems.set([
-      {
-        id: 6792,
-        prod_id: {
-          codigo: 'ZMW-120A',
-          descripcion: 'UNITAPE PRODUCTO A - MOTOR AIR PRESSURE TUBING',
-          tipo: 'MER'
-        },
-        disponible: 3,
-        importacion: 0,
-        acondicionado: 0,
-        reesterilizado: 0,
-        observados: 0,
-        consignacion: 0,
-        venta_sujeta: 0,
-        stock_total: 3
-      },
-      {
-        id: 6791,
-        prod_id: {
-          codigo: 'ZMW-11',
-          descripcion: 'UNITAPE PRODUCTO B - ACCESSORY KIT',
-          tipo: 'SG-IM'
-        },
-        disponible: 1,
-        importacion: 0,
-        acondicionado: 0,
-        reesterilizado: 0,
-        observados: 0,
-        consignacion: 0,
-        venta_sujeta: 0,
-        stock_total: 1
-      }
-    ]);
   }
 }

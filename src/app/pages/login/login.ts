@@ -28,8 +28,8 @@ export class LoginComponent {
     this.showPassword.update(v => !v);
   }
 
-  // Construir la URL del logo dinámicamente usando la configuración
-  logoUrl = `${this.configService.apiUrl()}NewAPI/static/avatars/LogoSurgiC_SinFondo.png`;
+  // El logo se sirve directamente desde la raíz del servidor oficial (IIS)
+  logoUrl = '/NewAPI/static/avatars/LogoSurgiC_SinFondo.png';
 
   async onLogin() {
     if (!this.usuario() || !this.password()) {

@@ -1,7 +1,10 @@
-<header class="main-header">
+<header class="main-header" [class.dark-mode]="themeService.currentTheme() === 'dark'">
   <div class="header-left">
     <div class="title-section">
-      <h2>STOCK INVENTARIO</h2>
+      <h2>
+        <span class="stock-text">STOCK </span>
+        <span class="inventario-text">INVENTARIO</span>
+      </h2>
       <span class="subtitle">GESTIÓN CENTRALIZADA DE STOCK</span>
     </div>
   </div>
