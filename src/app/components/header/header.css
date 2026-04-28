@@ -1,6 +1,6 @@
 .main-header {
     height: 70px;
-    background: #245c7a;
+    background: #417690;
     /* Azul petróleo/verdoso solicitado */
     display: flex;
     align-items: center;
@@ -33,20 +33,39 @@
 .header-left {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.2rem;
 }
 
-.page-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: white;
+.title-section {
+    display: flex;
+    flex-direction: column;
+    min-width: fit-content;
+}
+
+.title-section h2 {
     margin: 0;
+    padding: 0;
+    color: var(--text-color);
+    font-size: 1.54rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -1px;
+    line-height: 1;
+}
+
+.title-section .subtitle {
+    color: #889fbe;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 0px;
 }
 
 .header-right {
     display: flex;
     align-items: center;
-    gap: 1.5rem;
+    gap: 1rem;
 }
 
 .user-profile-container {
@@ -56,7 +75,7 @@
 .user-profile {
     display: flex;
     align-items: right;
-    gap: 0.6rem;
+    gap: 0.4rem;
     padding: 0.5rem 1.2rem;
     border-radius: 32px;
     cursor: pointer;
@@ -118,12 +137,6 @@
     transform: rotate(180deg);
 }
 
-.profile-email {
-    font-size: 0.75rem;
-    color: #3b82f6;
-    margin-bottom: 4px;
-}
-
 /* Tarjeta de Perfil */
 .profile-card {
     position: absolute;
@@ -166,6 +179,12 @@
     font-size: 1rem;
 }
 
+.profile-email {
+    font-size: 0.75rem;
+    color: #3b82f6;
+    margin-bottom: 4px;
+}
+
 .profile-detail {
     font-size: 0.813rem;
     color: #64748b;
@@ -196,7 +215,8 @@
 }
 
 .admin-link:hover {
-    background: #f1f5f9;
+    background: var(--primary-blue);
+    color: var(--white);
 }
 
 .btn-logout {

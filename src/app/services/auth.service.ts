@@ -22,6 +22,13 @@ export class AuthService {
   }
 
   /**
+   * Obtiene el token de acceso desde el almacenamiento local.
+   */
+  get token(): string | null {
+    return localStorage.getItem('token');
+  }
+
+  /**
    * Intenta iniciar sesión con las credenciales proporcionadas.
    * Utiliza el endpoint '/api-proxy/api/token/' configurado en el proxy.
    */

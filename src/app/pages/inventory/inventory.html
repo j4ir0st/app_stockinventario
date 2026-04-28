@@ -1,44 +1,35 @@
 <div class="inventory-container" [class.dark-mode]="themeService.currentTheme() === 'dark'">
   <div class="inventory-wrapper">
-    <div class="page-header">
-      <div class="header-info">
-        <h2>Stock Aprobado</h2>
-        <p>Vea y administre el stock disponible en tiempo real.</p>
+    <!-- Header Compacto: Buscador + Paginación -->
+    <div class="search-header">
+      <div class="search-box">
+        <div class="input-wrapper">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" (keyup.enter)="buscar()"
+            placeholder="Buscar código...">
+        </div>
+        <button class="btn-search" (click)="buscar()" [disabled]="loading()">
+          <i class="fas" [ngClass]="loading() ? 'fa-spinner fa-spin' : 'fa-search'"></i>
+        </button>
       </div>
-      
-      <!-- Paginación Superior -->
+
       <div class="pagination-controls">
         <button class="btn-page" (click)="prevPage()" [disabled]="!prevUrl() || loading()">
           <i class="fas fa-chevron-left"></i>
         </button>
-        <span class="page-info">Total: <strong>{{ totalCount() }}</strong> registros</span>
+        <span class="page-info"><strong>{{ totalCount() }}</strong> regs.</span>
         <button class="btn-page" (click)="nextPage()" [disabled]="!nextUrl() || loading()">
           <i class="fas fa-chevron-right"></i>
         </button>
       </div>
     </div>
 
-    <div class="search-box">
-      <div class="input-wrapper">
-        <i class="fas fa-search search-icon"></i>
-        <input 
-          type="text" 
-          [ngModel]="searchTerm()"
-          (ngModelChange)="searchTerm.set($event)"
-          (keyup.enter)="buscar()"
-          placeholder="Buscar por descripción o código de producto...">
-      </div>
-      <button class="btn-search" (click)="buscar()" [disabled]="loading()">
-        {{ loading() ? 'BUSCANDO...' : 'BUSCAR' }}
-      </button>
-    </div>
-
     <div class="table-container">
       <table class="stock-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>PROD ID</th>
+            <th>CÓDIGO</th>
+            <th>DESCRIPCIÓN</th>
             <th>DISPONIBLE</th>
             <th>IMPORTACION</th>
             <th>ACONDICIONADO</th>
@@ -50,30 +41,36 @@
           </tr>
         </thead>
         <tbody>
-          @for (item of stockItems(); track item.id) {
-            <tr>
-              <td>{{ item.id }}</td>
-              <td class="prod-id">{{ item.prod_id }}</td>
-              <td>{{ item.disponible }}</td>
-              <td>{{ item.importacion }}</td>
-              <td>{{ item.acondicionado }}</td>
-              <td>{{ item.reesterilizado }}</td>
-              <td>{{ item.observados }}</td>
-              <td>{{ item.consignacion }}</td>
-              <td>{{ item.venta_sujeta }}</td>
-              <td>
-                <span class="badge" [class.badge-stock]="(item.stock_total || item.stock) > 0">
-                  {{ item.stock_total || item.stock }}
-                </span>
-              </td>
-            </tr>
+          @for (item of stockItems(); track item.prod_id?.codigo) {
+          <tr>
+            <td>
+              <div class="prod-code">{{ item.prod_id?.tipo ? item.prod_id.tipo.trim() + ':' : '' }}{{
+                item.prod_id?.codigo }}</div>
+            </td>
+            <td>
+              <div class="prod-desc">{{ item.prod_id?.descripcion }}</div>
+            </td>
+            <td>{{ item.disponible }}</td>
+            <td>{{ item.importacion }}</td>
+            <td>{{ item.acondicionado }}</td>
+            <td>{{ item.reesterilizado }}</td>
+            <td>{{ item.observados }}</td>
+            <td>{{ item.consignacion }}</td>
+            <td>{{ item.venta_sujeta }}</td>
+            <td>
+              <span class="badge" [class.badge-danger]="(item.stock_total || item.stock) <= 0"
+                [class.badge-warning]="(item.stock_total || item.stock) >= 1 && (item.stock_total || item.stock) <= 4"
+                [class.badge-success]="(item.stock_total || item.stock) >= 5">
+                {{ (item.stock_total || item.stock) < 0 ? 0 : (item.stock_total || item.stock) }} </span>
+            </td>
+          </tr>
           }
           @if (stockItems().length === 0 && !loading()) {
-            <tr>
-              <td colspan="10" class="no-results">
-                No se encontraron productos que coincidan con la búsqueda.
-              </td>
-            </tr>
+          <tr>
+            <td colspan="10" class="no-results">
+              No se encontraron productos que coincidan con la búsqueda.
+            </td>
+          </tr>
           }
         </tbody>
       </table>

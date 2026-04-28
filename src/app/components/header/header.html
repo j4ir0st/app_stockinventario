@@ -1,14 +1,17 @@
 <header class="main-header">
   <div class="header-left">
-    <h1 class="page-title">Stock Inventario</h1>
+    <div class="title-section">
+      <h2>STOCK INVENTARIO</h2>
+      <span class="subtitle">GESTIÓN CENTRALIZADA DE STOCK</span>
+    </div>
   </div>
 
   <div class="header-right">
     <div class="theme-toggle" (click)="themeService.toggleTheme()">
       @if (themeService.currentTheme() === 'light') {
-        <i class="fas fa-moon"></i>
+      <i class="fas fa-moon"></i>
       } @else {
-        <i class="fas fa-sun"></i>
+      <i class="fas fa-sun"></i>
       }
     </div>
 

@@ -24,7 +24,7 @@ export class SidebarComponent {
     { label: 'Principal', route: '/inventory', icon: 'fas fa-home', isAsset: false },
     { label: 'Neurocirugía', route: '/neuro', icon: 'assets/images/Neurocirugía-icon.png', isAsset: true },
     { label: 'Quemados y Heridas', route: '/quemados', icon: 'assets/images/Quemados y Heridas-icon.png', isAsset: true },
-    { label: 'Terapia de Sueño y Apnea', route: '/sueno', icon: 'assets/images/Terapia de Sueño y Apnea-icon.png', isAsset: true },
+    { label: 'T. de Sueño y Apnea', route: '/sueno', icon: 'assets/images/Terapia de Sueño y Apnea-icon.png', isAsset: true },
     { label: 'Traumatología', route: '/trauma', icon: 'assets/images/Traumatología-icon.png', isAsset: true },
   ];
 }
