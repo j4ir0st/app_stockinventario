@@ -14,7 +14,7 @@ COPY --from=build /app/dist/app-stock-frontend/browser /usr/share/nginx/html/app
 # Copiar configuración de Nginx (plantilla para envsubst)
 COPY nginx.conf.template /etc/nginx/conf.d/default.conf.template
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 80
 
