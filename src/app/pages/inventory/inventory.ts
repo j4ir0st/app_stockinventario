@@ -32,6 +32,7 @@ export class InventoryComponent implements OnInit {
   prevUrl = signal<string | null>(null);
   totalCount = signal(0);
   loadingExport = signal(false);
+  exportProgress = signal(0);
 
   ngOnInit(): void {
     this.cargarStock();
@@ -39,76 +40,30 @@ export class InventoryComponent implements OnInit {
 
   /**
    * Carga los datos de stock desde la API.
-   * @param url URL opcional para paginación (next/prev).
+   * @param urlOrSearch URL opcional para paginación (next/prev) o término de búsqueda.
    */
-  cargarStock(url?: string): void {
-    console.log('CargarStock - Estado inicial:', {
-      loading: this.loading(),
-      itemsCount: this.stockItems().length
-    });
-
+  cargarStock(urlOrSearch?: string): void {
     this.loading.set(true);
     this.stockItems.set([]);
 
-    const search = url || this.searchTerm();
+    const search = urlOrSearch || this.searchTerm();
 
-    // Si es una URL de paginación, hacemos una sola llamada
-    if (search.startsWith('http') || search.includes('StockAprobado')) {
-      this.apiService.getStockAprobado(search).subscribe({
-        next: (data) => this.procesarResultados(data),
-        error: (err) => this.manejarError(err)
-      });
-      return;
-    }
-
-    // Si es una búsqueda por texto, realizamos peticiones (probando solo con código por ahora)
-    if (search.trim() !== '') {
-      const p1 = this.apiService.getStockAprobadoConFiltro('prod_id__codigo__contains', search).pipe(catchError(() => of({ results: [] })));
-      const p2 = this.apiService.getStockAprobadoConFiltro('prod_id__descripcion__contains', search).pipe(catchError(() => of({ results: [] })));
-      const p3 = this.apiService.getStockAprobadoConFiltro('prod_id__tipo__contains', search).pipe(catchError(() => of({ results: [] })));
-
-      forkJoin([p1, p2, p3]).subscribe({
-        next: (responses: any[]) => {
-          const allResults = responses.flatMap(resp => resp.results || (Array.isArray(resp) ? resp : []));
-
-          const combinedData = {
-            results: allResults,
-            count: allResults.length,
-            next: responses[0]?.next || null,
-            previous: responses[0]?.previous || null
-          };
-
-          this.procesarResultados(combinedData);
-        },
-        error: (err) => this.manejarError(err)
-      });
-    } else {
-      // Carga inicial sin filtros
-      this.apiService.getStockAprobado().subscribe({
-        next: (data) => this.procesarResultados(data),
-        error: (err) => this.manejarError(err)
-      });
-    }
+    this.apiService.getStockAprobado(search).subscribe({
+      next: (data) => this.procesarResultados(data),
+      error: (err) => this.manejarError(err)
+    });
   }
 
   private procesarResultados(data: any): void {
     console.log('Procesando resultados:', data);
-    let results = data.results || (Array.isArray(data) ? data : []);
+    const results = data.results || (Array.isArray(data) ? data : []);
 
-    // Distinct robusto por ID, URL o combinación única (evita tabla vacía si 'id' falta)
-    const uniqueItems = results.filter((item: any, index: number, self: any[]) => {
-      const uniqueKey = item.url || ((item.prod_id?.codigo || '') + '-' + (item.prod_id?.tipo || ''));
-      return uniqueKey && index === self.findIndex((t: any) =>
-        (t.url || ((t.prod_id?.codigo || '') + '-' + (t.prod_id?.tipo || ''))) === uniqueKey
-      );
-    });
-
-    this.stockItems.set(uniqueItems);
+    this.stockItems.set(results);
     this.nextUrl.set(data.next || null);
     this.prevUrl.set(data.previous || null);
-    this.totalCount.set(data.count || uniqueItems.length);
+    this.totalCount.set(data.count || results.length);
     this.loading.set(false);
-    console.log('Carga finalizada. Items:', uniqueItems.length);
+    console.log('Carga finalizada. Items:', results.length, 'Total:', data.count);
   }
 
   private manejarError(err: any): void {
@@ -137,62 +92,61 @@ export class InventoryComponent implements OnInit {
 
   /**
    * Descarga todos los registros de la búsqueda actual en un archivo Excel.
-   * Itera sobre todas las páginas disponibles para obtener la data completa.
+   * Optimizado: Carga páginas en paralelo y muestra progreso.
    */
   async descargarExcel() {
     if (this.loadingExport()) return;
 
     this.loadingExport.set(true);
-    console.log('Iniciando exportación a Excel...');
+    this.exportProgress.set(0);
+    console.log('Iniciando exportación a Excel paralela...');
 
     try {
-      let allData: any[] = [];
-      let nextUrl: string | null = null;
-
-      // Determinar la primera URL de carga según la búsqueda actual
       const search = this.searchTerm();
+      const top = 1000;
 
-      // Primera llamada
-      let response: any;
-      if (search.trim() !== '') {
-        // Si hay búsqueda, usamos el filtro por código como base para el excel completo
-        response = await this.apiService.getStockAprobadoConFiltro('prod_id__codigo__contains', search).toPromise();
-      } else {
-        response = await this.apiService.getStockAprobado().toPromise();
+      // Primera llamada para obtener el conteo total y la primera página
+      const firstResponse: any = await this.apiService.getStockAprobado(search, top).toPromise();
+      
+      if (!firstResponse) {
+        throw new Error('No se recibió respuesta del servidor');
       }
 
-      if (response) {
-        allData = [...(response.results || response)];
-        nextUrl = response.next || null;
-
-        // Seguir cargando mientras haya páginas (recursión/bucle)
-        while (nextUrl) {
-          console.log('Cargando siguiente página para Excel:', nextUrl);
-          const nextResp: any = await this.apiService.getStockAprobado(nextUrl).toPromise();
-          if (nextResp) {
-            allData = [...allData, ...(nextResp.results || nextResp)];
-            nextUrl = nextResp.next || null;
-          } else {
-            nextUrl = null;
-          }
-        }
-      }
-
-      if (allData.length > 0) {
-        // Aplicar distinct robusto para consistencia con la tabla
-        allData = allData.filter((item: any, index: number, self: any[]) => {
-          const uniqueKey = item.url || ((item.prod_id?.codigo || '') + '-' + (item.prod_id?.tipo || ''));
-          return uniqueKey && index === self.findIndex((t: any) =>
-            (t.url || ((t.prod_id?.codigo || '') + '-' + (t.prod_id?.tipo || ''))) === uniqueKey
-          );
-        });
-      }
-
-      if (allData.length === 0) {
+      const totalRecords = firstResponse.count || 0;
+      let allData = [...(firstResponse.results || [])];
+      
+      if (totalRecords === 0) {
         alert('No hay datos para exportar');
         this.loadingExport.set(false);
         return;
       }
+
+      const totalPages = Math.ceil(totalRecords / top);
+      this.exportProgress.set(Math.round((1 / totalPages) * 100));
+
+      if (totalPages > 1) {
+        const promises: Promise<any>[] = [];
+        // Empezamos desde la página 2
+        for (let i = 2; i <= totalPages; i++) {
+          // Construimos la URL manualmente para asegurar el número de página y el top
+          const pageUrl = `StockAprobado/?page=${i}&top=${top}${search ? '&buscar=' + encodeURIComponent(search) : ''}`;
+          
+          const p = this.apiService.getStockAprobado(pageUrl).toPromise().then(resp => {
+            // Actualizar progreso conforme terminan las peticiones
+            const currentProgress = this.exportProgress();
+            this.exportProgress.set(Math.min(99, currentProgress + Math.round((1 / totalPages) * 100)));
+            return resp.results || [];
+          });
+          promises.push(p);
+        }
+
+        const additionalResults = await Promise.all(promises);
+        additionalResults.forEach(results => {
+          allData = [...allData, ...results];
+        });
+      }
+
+      this.exportProgress.set(100);
 
       // Formatear los datos para el Excel
       const dataToExport = allData.map(item => ({

@@ -13,7 +13,14 @@
         </button>
         <button class="btn-excel" (click)="descargarExcel()" [disabled]="loadingExport()" title="Descargar Todo en Excel">
           @if (loadingExport()) {
-            <i class="fas fa-spinner fa-spin"></i>
+            <div class="progress-container">
+              <svg class="progress-svg" viewBox="0 0 36 36">
+                <path class="progress-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                <path class="progress-fill" [style.stroke-dasharray]="exportProgress() + ', 100'"
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              </svg>
+              <span class="progress-text">{{ exportProgress() }}%</span>
+            </div>
           } @else {
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
                  fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

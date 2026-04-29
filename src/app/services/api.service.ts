@@ -27,52 +27,80 @@ export class ApiService {
    * @param params Parámetros de consulta opcionales.
    */
   get<T>(endpoint: string, params?: HttpParams): Observable<T> {
-    return this.http.get<T>(`${this.baseUrl}${endpoint}`, { params });
+    let finalParams = params || new HttpParams();
+    if (!finalParams.has('format')) {
+      finalParams = finalParams.set('format', 'json');
+    }
+    return this.http.get<T>(`${this.baseUrl}${endpoint}`, { params: finalParams });
   }
 
   /**
-   * Obtiene el stock aprobado con filtros opcionales o mediante URL de paginación.
-   * @param urlOrSearch URL completa de DRF o texto de búsqueda.
+   * Obtiene el stock aprobado con soporte para búsqueda unificada y límite de resultados.
+   * @param urlOrSearch URL de paginación o término de búsqueda.
+   * @param top Límite de resultados opcional (ej: 1000).
    */
-  /**
-   * Obtiene el stock aprobado filtrando por un campo específico.
-   */
-  getStockAprobadoConFiltro(filtro: string, valor: string): Observable<any> {
-    const params = new HttpParams().set(filtro, valor);
-    return this.get('StockAprobado/', params);
-  }
-
-  /**
-   * Obtiene el stock aprobado de forma general.
-   */
-  getStockAprobado(urlOrSearch?: string): Observable<any> {
+  getStockAprobado(urlOrSearch?: string, top?: number): Observable<any> {
     if (urlOrSearch && (urlOrSearch.includes('StockAprobado') || urlOrSearch.includes('/api/'))) {
-      const urlNormalizada = this.fixUrl(urlOrSearch);
-      return this.http.get<any>(urlNormalizada);
+      let finalUrl = this.fixUrl(urlOrSearch);
+
+      // Si la URL es relativa (ej: "StockAprobado/?page=2"), le ponemos la base
+      if (!finalUrl.startsWith('/') && !finalUrl.startsWith('http')) {
+        finalUrl = this.baseUrl + finalUrl;
+      }
+
+      // Asegurar parámetros necesarios en URL de paginación
+      if (top && !finalUrl.includes('top=')) {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `top=${top}`;
+      }
+      if (!finalUrl.includes('format=json')) {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `format=json`;
+      }
+
+      return this.http.get<any>(finalUrl);
     }
 
     let params = new HttpParams();
+    if (urlOrSearch) {
+      params = params.set('buscar', urlOrSearch);
+    }
+    if (top) {
+      params = params.set('top', top.toString());
+    }
     return this.get('StockAprobado/', params);
   }
 
   /**
-   * Obtiene el inventario de almacenaje filtrando por un campo específico.
+   * Obtiene el inventario de almacenaje con soporte para búsqueda unificada y límite de resultados.
+   * @param urlOrSearch URL de paginación o término de búsqueda.
+   * @param top Límite de resultados opcional (ej: 1000).
    */
-  getStockInventarioConFiltro(filtro: string, valor: string): Observable<any> {
-    const params = new HttpParams().set(filtro, valor);
-    return this.get('StockInventario/', params);
-  }
-
-  /**
-   * Obtiene el inventario de almacenaje de forma general.
-   */
-  getStockInventario(urlOrSearch?: string): Observable<any> {
+  getStockInventario(urlOrSearch?: string, top?: number): Observable<any> {
     if (urlOrSearch && (urlOrSearch.includes('StockInventario') || urlOrSearch.includes('/api/'))) {
-      const urlNormalizada = this.fixUrl(urlOrSearch);
-      return this.http.get<any>(urlNormalizada);
+      let finalUrl = this.fixUrl(urlOrSearch);
+
+      // Si la URL es relativa, le ponemos la base
+      if (!finalUrl.startsWith('/') && !finalUrl.startsWith('http')) {
+        finalUrl = this.baseUrl + finalUrl;
+      }
+
+      // Asegurar parámetros necesarios en URL de paginación
+      if (top && !finalUrl.includes('top=')) {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `top=${top}`;
+      }
+      if (!finalUrl.includes('format=json')) {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `format=json`;
+      }
+
+      return this.http.get<any>(finalUrl);
     }
 
     let params = new HttpParams();
+    if (urlOrSearch) {
+      params = params.set('buscar', urlOrSearch);
+    }
+    if (top) {
+      params = params.set('top', top.toString());
+    }
     return this.get('StockInventario/', params);
   }
 

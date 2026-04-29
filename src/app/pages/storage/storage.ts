@@ -30,6 +30,7 @@ export class StorageComponent implements OnInit {
   prevUrl = signal<string | null>(null);
   totalCount = signal(0);
   loadingExport = signal(false);
+  exportProgress = signal(0);
 
   ngOnInit(): void {
     this.cargarStock();
@@ -37,69 +38,28 @@ export class StorageComponent implements OnInit {
 
   /**
    * Carga los datos de stock desde la API.
-   * @param url URL opcional para paginación (next/prev).
+   * @param urlOrSearch URL opcional para paginación (next/prev) o término de búsqueda.
    */
-  cargarStock(url?: string): void {
+  cargarStock(urlOrSearch?: string): void {
     this.loading.set(true);
     this.stockItems.set([]);
 
-    const search = url || this.searchTerm();
+    const search = urlOrSearch || this.searchTerm();
 
-    // Si es una URL de paginación, hacemos una sola llamada
-    if (search.startsWith('http') || search.includes('StockInventario')) {
-      this.apiService.getStockInventario(search).subscribe({
-        next: (data) => this.procesarResultados(data),
-        error: (err) => this.manejarError(err)
-      });
-      return;
-    }
-
-    // Si es una búsqueda por texto, realizamos peticiones combinadas
-    if (search.trim() !== '') {
-      const p1 = this.apiService.getStockInventarioConFiltro('prod_id__codigo__contains', search).pipe(catchError(() => of({ results: [] })));
-      const p2 = this.apiService.getStockInventarioConFiltro('prod_id__descripcion__contains', search).pipe(catchError(() => of({ results: [] })));
-      const p3 = this.apiService.getStockInventarioConFiltro('prod_id__tipo__contains', search).pipe(catchError(() => of({ results: [] })));
-
-      forkJoin([p1, p2, p3]).subscribe({
-        next: (responses: any[]) => {
-          const allResults = responses.flatMap(resp => resp.results || (Array.isArray(resp) ? resp : []));
-
-          const combinedData = {
-            results: allResults,
-            count: allResults.length,
-            next: responses[0]?.next || null,
-            previous: responses[0]?.previous || null
-          };
-
-          this.procesarResultados(combinedData);
-        },
-        error: (err) => this.manejarError(err)
-      });
-    } else {
-      // Carga inicial sin filtros
-      this.apiService.getStockInventario().subscribe({
-        next: (data) => this.procesarResultados(data),
-        error: (err) => this.manejarError(err)
-      });
-    }
+    this.apiService.getStockInventario(search).subscribe({
+      next: (data) => this.procesarResultados(data),
+      error: (err) => this.manejarError(err)
+    });
   }
 
   private procesarResultados(data: any): void {
     console.log('Procesando resultados StockInventario:', data);
-    let results = data.results || (Array.isArray(data) ? data : []);
+    const results = data.results || (Array.isArray(data) ? data : []);
 
-    // Distinct robusto por ID, URL o combinación única
-    const uniqueItems = results.filter((item: any, index: number, self: any[]) => {
-      const uniqueKey = item.url || ((item.prod_id?.codigo || '') + '-' + (item.prod_id?.tipo || ''));
-      return uniqueKey && index === self.findIndex((t: any) =>
-        (t.url || ((t.prod_id?.codigo || '') + '-' + (t.prod_id?.tipo || ''))) === uniqueKey
-      );
-    });
-
-    this.stockItems.set(uniqueItems);
+    this.stockItems.set(results);
     this.nextUrl.set(data.next || null);
     this.prevUrl.set(data.previous || null);
-    this.totalCount.set(data.count || uniqueItems.length);
+    this.totalCount.set(data.count || results.length);
     this.loading.set(false);
   }
 
@@ -122,61 +82,66 @@ export class StorageComponent implements OnInit {
 
   /**
    * Descarga todos los registros de la búsqueda actual en un archivo Excel.
+   * Optimizado: Carga páginas en paralelo y muestra progreso.
    */
   async descargarExcel() {
     if (this.loadingExport()) return;
 
     this.loadingExport.set(true);
-    console.log('Iniciando exportación a Excel (Almacenaje)...');
+    this.exportProgress.set(0);
+    console.log('Iniciando exportación a Excel paralela (Almacenaje)...');
 
     try {
-      let allData: any[] = [];
-      let nextUrl: string | null = null;
-
       const search = this.searchTerm();
-      let response: any;
-      if (search.trim() !== '') {
-        response = await this.apiService.getStockInventarioConFiltro('prod_id__codigo__contains', search).toPromise();
-      } else {
-        response = await this.apiService.getStockInventario().toPromise();
+      const top = 1000;
+
+      // Primera llamada para obtener el conteo total y la primera página
+      const firstResponse: any = await this.apiService.getStockInventario(search, top).toPromise();
+
+      if (!firstResponse) {
+        throw new Error('No se recibió respuesta del servidor');
       }
 
-      if (response) {
-        allData = [...(response.results || response)];
-        nextUrl = response.next || null;
+      const totalRecords = firstResponse.count || 0;
+      let allData = [...(firstResponse.results || [])];
 
-        while (nextUrl) {
-          const nextResp: any = await this.apiService.getStockInventario(nextUrl).toPromise();
-          if (nextResp) {
-            allData = [...allData, ...(nextResp.results || nextResp)];
-            nextUrl = nextResp.next || null;
-          } else {
-            nextUrl = null;
-          }
-        }
-      }
-
-      if (allData.length > 0) {
-        allData = allData.filter((item: any, index: number, self: any[]) => {
-          const uniqueKey = item.url || ((item.prod_id?.codigo || '') + '-' + (item.prod_id?.tipo || ''));
-          return uniqueKey && index === self.findIndex((t: any) =>
-            (t.url || ((t.prod_id?.codigo || '') + '-' + (t.prod_id?.tipo || ''))) === uniqueKey
-          );
-        });
-      }
-
-      if (allData.length === 0) {
+      if (totalRecords === 0) {
         alert('No hay datos para exportar');
         this.loadingExport.set(false);
         return;
       }
 
+      const totalPages = Math.ceil(totalRecords / top);
+      this.exportProgress.set(Math.round((1 / totalPages) * 100));
+
+      if (totalPages > 1) {
+        const promises: Promise<any>[] = [];
+        // Empezamos desde la página 2
+        for (let i = 2; i <= totalPages; i++) {
+          const pageUrl = `StockInventario/?page=${i}&top=${top}${search ? '&buscar=' + encodeURIComponent(search) : ''}`;
+
+          const p = this.apiService.getStockInventario(pageUrl).toPromise().then(resp => {
+            const currentProgress = this.exportProgress();
+            this.exportProgress.set(Math.min(99, currentProgress + Math.round((1 / totalPages) * 100)));
+            return resp.results || [];
+          });
+          promises.push(p);
+        }
+
+        const additionalResults = await Promise.all(promises);
+        additionalResults.forEach(results => {
+          allData = [...allData, ...results];
+        });
+      }
+
+      this.exportProgress.set(100);
+
       // Formatear los datos para el Excel
       const dataToExport = allData.map(item => ({
         'CÓDIGO': (item.prod_id?.tipo ? item.prod_id.tipo.trim() + ':' : '') + (item.prod_id?.codigo || ''),
         'DESCRIPCIÓN': item.prod_id?.descripcion || '',
-        'TIPO ALMACENAJE': item.tipo_almacenaje || '',
         'ALMACENAJE': item.almacenaje || '',
+        'PROVEEDOR': item.prod_id?.prov_id || '',
         'STOCK': item.stock || 0
       }));
 
