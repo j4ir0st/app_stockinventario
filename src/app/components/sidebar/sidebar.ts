@@ -28,5 +28,5 @@ export class SidebarComponent {
     { label: 'Traumatología', route: '/trauma', icon: 'assets/images/Traumatología-icon.png', isAsset: true },
   ];
 
-  footerItems = [];
+  footerItems: any[] = [];
 }
