@@ -59,6 +59,23 @@
     display: flex;
     flex-direction: column;
     min-width: fit-content;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    user-select: none;
+}
+
+.title-section:hover {
+    transform: translateY(-1px);
+}
+
+.title-section:active {
+    transform: translateY(0);
+}
+
+.title-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
 }
 
 .title-section h2 {
@@ -95,6 +112,37 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     margin-top: 0px;
+    transition: all 0.3s ease;
+}
+
+.title-section .subtitle.success-message {
+    color: #4caf50;
+    font-weight: 800;
+}
+
+.main-header.dark-mode .subtitle.success-message {
+    color: #81c784;
+}
+
+/* Icono de refresco y animación */
+.refresh-icon {
+    font-size: 1rem;
+    color: #007bff;
+    animation: rotate 1s linear infinite;
+}
+
+.main-header.dark-mode .refresh-icon {
+    color: #ffffff;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .header-right {

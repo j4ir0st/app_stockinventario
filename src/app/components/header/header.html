@@ -1,11 +1,21 @@
 <header class="main-header" [class.dark-mode]="themeService.currentTheme() === 'dark'">
   <div class="header-left">
-    <div class="title-section">
-      <h2>
-        <span class="stock-text">STOCK </span>
-        <span class="inventario-text">INVENTARIO</span>
-      </h2>
-      <span class="subtitle">GESTIÓN CENTRALIZADA DE STOCK</span>
+    <div class="title-section" (click)="refrescar()">
+      <div class="title-with-icon">
+        <h2>
+          <span class="stock-text">STOCK </span>
+          <span class="inventario-text">INVENTARIO</span>
+        </h2>
+        @if (estaRefrescando()) {
+          <i class="fas fa-sync-alt refresh-icon spinning"></i>
+        }
+      </div>
+      
+      @if (mostrarMensajeExito()) {
+        <span class="subtitle success-message">REGISTRO DE STOCK ACTUALIZADO</span>
+      } @else {
+        <span class="subtitle">GESTIÓN CENTRALIZADA DE STOCK</span>
+      }
     </div>
   </div>
 
