@@ -1,58 +1,125 @@
 <aside class="sidebar" [class.collapsed]="sidebarService.isCollapsed()">
   <div class="sidebar-header" [class.centered]="sidebarService.isCollapsed()">
     @if (!sidebarService.isCollapsed()) {
-      <img [src]="logoUrl" alt="Surgicorp Logo" class="sidebar-logo">
-      <button class="hamburger-btn" (click)="sidebarService.toggle()">
-        <i class="fas fa-bars"></i>
-      </button>
-    } @else {
-      <button class="hamburger-btn" (click)="sidebarService.toggle()">
-        <i class="fas fa-bars"></i>
-      </button>
+    <img [src]="logoUrl" alt="Surgicorp Logo" class="sidebar-logo">
     }
+    <button class="hamburger-btn" (click)="sidebarService.toggle()"
+      [title]="sidebarService.isCollapsed() ? 'Expandir' : 'Colapsar'">
+      <i class="fas fa-bars"></i>
+    </button>
   </div>
 
   @if (!sidebarService.isCollapsed()) {
-    <div class="nav-section">MENÚ DE OPCIONES</div>
-  }
-  
-  <nav class="sidebar-nav">
-    <ul>
-      @for (item of menuItems; track item.label) {
-        <li [routerLink]="item.route" routerLinkActive="active" [title]="item.label">
-          <div class="icon-container">
-            @if (item.isAsset) {
-              <img [src]="item.icon" [alt]="item.label" class="menu-icon-asset">
-            } @else {
-              <i [class]="item.icon + ' menu-icon-fa'"></i>
-            }
+  <div class="filters-container">
+    <!-- Filtro Proveedor -->
+    <div class="filter-group">
+      <div class="combobox-wrapper">
+        <input type="text" placeholder="Proveedor"
+          [ngModel]="searchService.filtros().prod_id__prov_id__nombre__contains"
+          (ngModelChange)="onFilterChange('prod_id__prov_id__nombre__contains', $event)"
+          (blur)="setTimeout(() => showProvs.set(false), 200)">
+
+        @if (!searchService.filtros().prod_id__prov_id__nombre__contains) {
+        <i class="fas fa-search-plus filter-icon"></i>
+        } @else {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__prov_id__nombre__contains', '')"></i>
+        }
+
+        <!-- Dropdown personalizado -->
+        @if (showProvs()) {
+        <div class="custom-dropdown">
+          @for (p of getFilteredList(filterDataService.proveedores(),
+          searchService.filtros().prod_id__prov_id__nombre__contains); track p) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__prov_id__nombre__contains', p)">
+            {{ p }}
           </div>
-          @if (!sidebarService.isCollapsed()) {
-            <span>{{ item.label }}</span>
           }
-        </li>
-      }
-    </ul>
-  </nav>
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- Filtro Grupo -->
+    <div class="filter-group">
+      <div class="combobox-wrapper">
+        <input type="text" placeholder="Grupo" [ngModel]="searchService.filtros().prod_id__grupo_id__nombre__contains"
+          (ngModelChange)="onFilterChange('prod_id__grupo_id__nombre__contains', $event)"
+          (blur)="setTimeout(() => showGroups.set(false), 200)">
+
+        @if (!searchService.filtros().prod_id__grupo_id__nombre__contains) {
+        <i class="fas fa-search-plus filter-icon"></i>
+        } @else {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__grupo_id__nombre__contains', '')"></i>
+        }
+
+        <!-- Dropdown personalizado -->
+        @if (showGroups()) {
+        <div class="custom-dropdown">
+          @for (g of getFilteredList(filterDataService.grupos(),
+          searchService.filtros().prod_id__grupo_id__nombre__contains); track g) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__grupo_id__nombre__contains', g)">
+            {{ g }}
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+
+    <!-- Filtro Linea -->
+    <div class="filter-group">
+      <div class="combobox-wrapper">
+        <input type="text" placeholder="Linea" [ngModel]="searchService.filtros().prod_id__linea_id__nombre__contains"
+          (ngModelChange)="onFilterChange('prod_id__linea_id__nombre__contains', $event)"
+          (blur)="setTimeout(() => showLines.set(false), 200)">
+
+        @if (!searchService.filtros().prod_id__linea_id__nombre__contains) {
+        <i class="fas fa-search-plus filter-icon"></i>
+        } @else {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__linea_id__nombre__contains', '')"></i>
+        }
+
+        <!-- Dropdown personalizado -->
+        @if (showLines()) {
+        <div class="custom-dropdown">
+          @for (l of getFilteredList(filterDataService.lineas(),
+          searchService.filtros().prod_id__linea_id__nombre__contains); track l) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__linea_id__nombre__contains', l)">
+            {{ l }}
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+
+    <div class="sidebar-spacer-small"></div>
+
+    <div class="tipo-section">
+      <div class="tipo-title">TIPO DE PRODUCTO</div>
+      <div class="tipo-buttons">
+        <button class="btn-tipo" [class.active]="searchService.filtros().tipo_producto === 'MER'"
+          (click)="setTipo('MER')">MER</button>
+        <button class="btn-tipo" [class.active]="searchService.filtros().tipo_producto === 'CIN,IM'"
+          (click)="setTipo('IM-CIN')">IM-CIN</button>
+      </div>
+    </div>
+  </div>
+  }
+
 
   <div class="sidebar-spacer"></div>
 
-  <nav class="sidebar-footer">
-    <ul>
-      @for (item of footerItems; track item.label) {
-        <li [routerLink]="item.route" routerLinkActive="active" [title]="item.label">
-          <div class="icon-container">
-            @if (item.isAsset) {
-              <img [src]="item.icon" [alt]="item.label" class="menu-icon-asset">
-            } @else {
-              <i [class]="item.icon + ' menu-icon-fa'"></i>
-            }
-          </div>
-          @if (!sidebarService.isCollapsed()) {
-            <span>{{ item.label }}</span>
-          }
-        </li>
-      }
-    </ul>
-  </nav>
+  <div class="sidebar-footer-info" [class.collapsed-footer]="sidebarService.isCollapsed()">
+    @if (!sidebarService.isCollapsed()) {
+    <div class="update-label">Fecha y hora de la</div>
+    <div class="update-label">ultima actualizacion</div>
+    <div class="update-time">{{ searchService.ultimaActualizacion() }}</div>
+    } @else {
+    <div class="update-label-mini">Ultima</div>
+    <div class="update-label-mini">Actual.</div>
+    <div class="update-time-mini">{{ searchService.fechaActualizacion() }}</div>
+    <div class="update-time-mini">{{ searchService.horaActualizacion() }}</div>
+    }
+  </div>
 </aside>

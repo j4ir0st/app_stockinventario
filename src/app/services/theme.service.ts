@@ -12,9 +12,11 @@ export class ThemeService {
   public currentTheme = this.theme.asReadonly();
 
   constructor() {
-    // Persistencia automática
+    // Persistencia automática y aplicación al DOM
     effect(() => {
-      localStorage.setItem('theme', this.theme());
+      const current = this.theme();
+      localStorage.setItem('theme', current);
+      document.documentElement.setAttribute('data-theme', current);
     });
   }
 

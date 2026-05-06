@@ -32,9 +32,16 @@ Para desplegar la aplicación en un servidor, se utiliza Docker. El proceso comp
 
 | Versión | Fecha | Descripción de Cambios |
 | :--- | :--- | :--- |
-| **0.3.0** | 2026-05-04 | Separación de aplicaciones: El proyecto ahora se centra únicamente en Stock Inventario. Se eliminó Stock Aprobado. |
-| **0.2.0** | 2026-04-30 | Implementación de refresco global desde el header con animaciones y actualización de contexto (Stock Aprobado / Inventario). |
-| **0.1.0** | 2026-04-24 | Inicialización del proyecto Angular, configuración de Docker y estructura base. |
+| **0.5.0** | 2026-05-06 | Estabilización y Optimización: Migración a `firstValueFrom` (RxJS), nuevos dropdowns personalizados en sidebar con búsqueda en tiempo real, botones de limpieza individual (X) y lógica de filtrado OR por tipo de producto (`tipo_producto=CIN,IM`). Corrección de bug de paginación en ApiService e implementación de lógica 'Distinct' para listas maestras. Integración de imagen de montacarga en header. |
+| **0.4.0** | 2026-05-05 | Rediseño estético: Sidebar rosa (#ff65c3) y Header gris (#d9d9d9). Nuevos filtros tipo combobox en sidebar (Proveedor, Grupo, Línea). Agrupación y suma de stock por código de producto. Renombramiento de columnas para mayor claridad. |
+
+## Observaciones Técnicas (v0.5.0)
+
+- **Optimización de API**: Se han migrado las consultas de filtros al sufijo `__contains` para permitir búsquedas parciales. Se corrigió un bug en la recursión de páginas que duplicaba el prefijo base de la URL.
+- **Búsqueda OR (Tipo Producto)**: El sistema envía el parámetro `&tipo_producto=CIN,IM` para realizar búsquedas combinadas, lo cual requiere soporte en el backend mediante un filtro personalizado (Q objects).
+- **Gestión de Memoria**: Las listas maestras (Proveedor, Grupo, Línea) se cargan de forma asíncrona y se guardan en caché por 7 días. Se aplica un filtrado `Distinct` en el frontend para evitar mostrar nombres duplicados.
+- **Modernización**: Se eliminó el uso de `.toPromise()` en favor de `firstValueFrom` de RxJS, alineando el proyecto con las mejores prácticas de Angular 19.
 
 ---
 *Este documento se mantendrá actualizado con cada mejora significativa del sistema.*
+

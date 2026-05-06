@@ -1,13 +1,12 @@
-import { Component, signal, inject, OnInit, OnDestroy } from '@angular/core';
+import { Component, signal, inject, OnInit, OnDestroy, effect, ElementRef, untracked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { ThemeService } from '../../services/theme.service';
 import { RefreshService } from '../../services/refresh.service';
-import { Subscription } from 'rxjs';
+import { SearchService } from '../../services/search.service';
 
 @Component({
   selector: 'app-inventory',
@@ -20,14 +19,19 @@ export class InventoryComponent implements OnInit, OnDestroy {
   private apiService = inject(ApiService);
   public themeService = inject(ThemeService);
   private refreshService = inject(RefreshService);
+  public searchService = inject(SearchService);
 
   private suscripcionRefresco?: Subscription;
+  private eRef = inject(ElementRef);
 
-  // Estado de la búsqueda
-  searchTerm = signal('');
-
-  // Lista de items de stock
+  // Lista de items de stock procesados
   stockItems = signal<any[]>([]);
+
+  // Items agrupados con sumas
+  itemsAgrupados = signal<any[]>([]);
+
+  // Término de búsqueda local para el código
+  searchTerm = signal('');
 
   // Estado de carga y paginación
   loading = signal(false);
@@ -38,43 +42,59 @@ export class InventoryComponent implements OnInit, OnDestroy {
   loadingExport = signal(false);
   exportProgress = signal(0);
 
-  ngOnInit(): void {
-    this.cargarStock();
+  constructor() {
+    // Reaccionar a cambios en los filtros del sidebar
+    effect(() => {
+      const filtros = this.searchService.filtros();
+      console.log('Filtros cambiados, recargando stock...', filtros);
+      untracked(() => this.cargarStock());
+    });
+  }
 
+
+  ngOnInit(): void {
     // Escuchar eventos de refresco desde el header
     this.suscripcionRefresco = this.refreshService.refresco$.subscribe(() => {
-      console.log('Refrescando Stock Inventario desde el Header...');
-      this.cargarStock();
+      this.searchService.actualizarFecha();
+      // Solo cargamos si los filtros ya están vacíos (porque el effect no se disparará)
+      const f = this.searchService.filtros();
+      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__nombre__contains && !f.prod_id__grupo_id__nombre__contains && !f.prod_id__linea_id__nombre__contains;
+
+      if (isEmpty) {
+        this.cargarStock();
+      }
     });
   }
 
   ngOnDestroy(): void {
-    // Limpiar suscripción para evitar fugas de memoria
     this.suscripcionRefresco?.unsubscribe();
   }
 
   /**
-   * Carga los datos de stock desde la API.
-   * @param urlOrSearch URL opcional para paginación (next/prev) o término de búsqueda.
+   * Carga los datos de stock desde la API usando los filtros globales.
    */
   cargarStock(urlOrSearch?: string): void {
+    // Evitar múltiples cargas simultáneas
+    if (this.loading() && !urlOrSearch) return;
+
     this.loading.set(true);
-    this.stockItems.set([]);
 
-    const search = urlOrSearch || this.searchTerm();
+    const filtros = this.searchService.filtros();
+    let queryParams: any = filtros;
 
-    // Extraer página si es una URL de paginación
-    if (urlOrSearch && urlOrSearch.includes('page=')) {
+    if (urlOrSearch && urlOrSearch.includes('StockInventario')) {
+      queryParams = urlOrSearch;
+
+      // Extraer página si es una URL de paginación
       const match = urlOrSearch.match(/page=(\d+)/);
       if (match) this.paginaActual.set(parseInt(match[1]));
-    } else if (!urlOrSearch || !urlOrSearch.includes('StockInventario')) {
-      // Si es una búsqueda nueva o carga inicial, resetear a página 1
+    } else {
       this.paginaActual.set(1);
     }
 
-    this.apiService.getStockInventario(search).subscribe({
-      next: (data) => this.procesarResultados(data),
-      error: (err) => this.manejarError(err)
+    this.apiService.getStockInventario(queryParams).subscribe({
+      next: (data: any) => this.procesarResultados(data),
+      error: (err: any) => this.manejarError(err)
     });
   }
 
@@ -83,11 +103,59 @@ export class InventoryComponent implements OnInit, OnDestroy {
     const results = data.results || (Array.isArray(data) ? data : []);
 
     this.stockItems.set(results);
+
+    // Agrupar y sumar por código (asumiendo que vienen ordenados del backend)
+    const agrupados: any[] = [];
+    let currentGroup: any[] = [];
+    let lastCode = '';
+
+    results.forEach((item: any, index: number) => {
+      const code = item.prod_id?.codigo || '';
+
+      if (index === 0) {
+        lastCode = code;
+        currentGroup.push(item);
+      } else if (code === lastCode) {
+        currentGroup.push(item);
+      } else {
+        // Cerrar grupo anterior
+        const total = currentGroup.reduce((sum, i) => sum + (i.stock || 0), 0);
+        agrupados.push({
+          items: currentGroup,
+          codigo: lastCode,
+          total: total
+        });
+
+        // Empezar nuevo grupo
+        lastCode = code;
+        currentGroup = [item];
+      }
+
+      // Si es el último item, cerrar el grupo actual
+      if (index === results.length - 1) {
+        const total = currentGroup.reduce((sum, i) => sum + (i.stock || 0), 0);
+        agrupados.push({
+          items: currentGroup,
+          codigo: lastCode,
+          total: total
+        });
+      }
+    });
+
+
+    this.itemsAgrupados.set(agrupados);
     this.nextUrl.set(data.next || null);
     this.prevUrl.set(data.previous || null);
     this.totalCount.set(data.count || results.length);
     this.loading.set(false);
+
+    // Resetear scroll al inicio de la tabla
+    setTimeout(() => {
+      const tableContainer = this.eRef.nativeElement.querySelector('.table-container');
+      if (tableContainer) tableContainer.scrollTop = 0;
+    }, 0);
   }
+
 
   private manejarError(err: any): void {
     console.error('Error en cargarStockInventario:', err);
@@ -118,11 +186,11 @@ export class InventoryComponent implements OnInit, OnDestroy {
     console.log('Iniciando exportación a Excel paralela (Almacenaje)...');
 
     try {
-      const search = this.searchTerm();
+      const filtros = this.searchService.filtros();
       const top = 1000;
 
       // Primera llamada para obtener el conteo total y la primera página
-      const firstResponse: any = await this.apiService.getStockInventario(search, top).toPromise();
+      const firstResponse: any = await firstValueFrom(this.apiService.getStockInventario(filtros, top));
 
       if (!firstResponse) {
         throw new Error('No se recibió respuesta del servidor');
@@ -142,11 +210,10 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
       if (totalPages > 1) {
         const promises: Promise<any>[] = [];
-        // Empezamos desde la página 2
         for (let i = 2; i <= totalPages; i++) {
-          const pageUrl = `StockInventario/?page=${i}&top=${top}${search ? '&buscar=' + encodeURIComponent(search) : ''}`;
-
-          const p = this.apiService.getStockInventario(pageUrl).toPromise().then((resp: any) => {
+          // Clonar filtros y añadir página
+          const pageParams = { ...filtros, page: i, top: top };
+          const p = firstValueFrom(this.apiService.getStockInventario(pageParams)).then((resp: any) => {
             const currentProgress = this.exportProgress();
             this.exportProgress.set(Math.min(99, currentProgress + Math.round((1 / totalPages) * 100)));
             return resp.results || [];
@@ -162,14 +229,15 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
       this.exportProgress.set(100);
 
-      // Formatear los datos para el Excel
+      // Formatear los datos para el Excel según el nuevo orden
       const dataToExport = allData.map(item => ({
-        'TIPO': item.prod_id?.tipo || '',
+        'PROVEEDOR': item.prod_id?.prov_id || '',
+        'GRUPO': item.prod_id?.grupo_id || '',
+        'LINEA': item.prod_id?.linea_id || '',
         'CÓDIGO': item.prod_id?.codigo || '',
         'DESCRIPCIÓN': item.prod_id?.descripcion || '',
-        'ALMACENAJE': item.almacenaje || '',
-        'PROVEEDOR': item.prod_id?.prov_id || '',
-        'STOCK': item.stock || 0
+        'EMPRESA Y DEPOSITO': item.almacenaje || '',
+        'CANTIDAD': item.stock || 0
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -187,6 +255,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
   }
 
   buscar(): void {
+    this.searchService.patchFiltros('buscar', this.searchTerm());
     this.cargarStock();
   }
+
 }

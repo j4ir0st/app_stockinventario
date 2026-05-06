@@ -4,6 +4,9 @@ import { AuthService } from '../../services/auth.service';
 import { SidebarService } from '../../services/sidebar.service';
 import { ThemeService } from '../../services/theme.service';
 import { RefreshService } from '../../services/refresh.service';
+import { SearchService } from '../../services/search.service';
+import { FilterDataService } from '../../services/filter-data.service';
+
 
 @Component({
   selector: 'app-header',
@@ -17,6 +20,8 @@ export class HeaderComponent {
   public sidebarService = inject(SidebarService);
   public themeService = inject(ThemeService);
   private refreshService = inject(RefreshService);
+  private searchService = inject(SearchService);
+  private filterDataService = inject(FilterDataService);
   
   // Señales para el estado de refresco
   public estaRefrescando = signal(false);
@@ -41,15 +46,19 @@ export class HeaderComponent {
   }
 
   /**
-   * Ejecuta la acción de refresco de datos.
-   * Dispara el evento global y activa las animaciones del header.
+   * Ejecuta la acción de refresco de datos (Hard Reset).
+   * Limpia filtros, recarga listas asíncronas y actualiza la tabla.
    */
   refrescar() {
     if (this.estaRefrescando()) return;
 
     this.estaRefrescando.set(true);
     
-    // Disparar el refresco en el componente activo
+    // Hard Reset: Limpiar filtros y recargar listas asíncronas desde API
+    this.searchService.limpiarFiltros();
+    this.filterDataService.init(true); // true para forzar recarga de API (omite caché)
+
+    // Disparar el refresco en el componente activo (tabla de stock)
     this.refreshService.solicitarRefresco();
 
     // Simular tiempo de carga y mostrar mensaje de éxito
@@ -61,6 +70,7 @@ export class HeaderComponent {
       setTimeout(() => {
         this.mostrarMensajeExito.set(false);
       }, 3000);
-    }, 1000); // El icono gira por al menos 1 segundo
+    }, 1200); // El icono gira un poco más para indicar el proceso completo
   }
+
 }

@@ -1,17 +1,17 @@
 <div class="inventory-container" [class.dark-mode]="themeService.currentTheme() === 'dark'">
   <div class="inventory-wrapper">
-    <!-- Header Compacto: Buscador + Paginación -->
+    <!-- Header Compacto: Buscador + Paginación (Restaurado) -->
     <div class="search-header">
       <div class="search-box">
         <div class="input-wrapper">
           <i class="fas fa-search search-icon"></i>
           <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" (keyup.enter)="buscar()"
-            placeholder="Buscar código en almacenaje...">
+            placeholder="Buscar código...">
         </div>
         <button class="btn-search" (click)="buscar()" [disabled]="loading()">
           <i class="fas" [ngClass]="loading() ? 'fa-spinner fa-spin' : 'fa-search'"></i>
         </button>
-        <button class="btn-excel" (click)="descargarExcel()" [disabled]="loadingExport()"
+        <button class="btn-excel" (click)="$event.stopPropagation(); descargarExcel()" [disabled]="loadingExport()"
           title="Descargar Todo en Excel">
           @if (loadingExport()) {
           <div class="progress-container">
@@ -50,45 +50,49 @@
       </div>
     </div>
 
+
     <div class="table-container">
       <table class="stock-table">
         <thead>
           <tr>
-            <th>TIPO</th>
+            <th>PROVEEDOR</th>
+            <th>GRUPO</th>
+            <th>LINEA</th>
             <th>CÓDIGO</th>
             <th>DESCRIPCIÓN</th>
-            <th>ALMACENAJE</th>
-            <th>PROVEEDOR</th>
-            <th>STOCK</th>
+            <th>EMPRESA Y DEPOSITO</th>
+            <th>CANTIDAD</th>
           </tr>
         </thead>
         <tbody>
-          @for (item of stockItems(); track item.url) {
-          <tr>
-            <td>
-              <div class="prod-type">{{ item.prod_id?.tipo }}</div>
-            </td>
-            <td>
-              <div class="prod-code">{{ item.prod_id?.codigo }}</div>
-            </td>
-            <td>
-              <div class="prod-desc">{{ item.prod_id?.descripcion }}</div>
-            </td>
-            <td>{{ item.almacenaje }}</td>
-            <td>
-              <div class="prod-desc">{{ item.prod_id?.prov_id }}</div>
-            </td>
-            <td>
-              <span class="badge" [class.badge-danger]="item.stock <= 0"
-                [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
-                {{ item.stock < 0 ? 0 : item.stock }} </span>
-            </td>
-          </tr>
+          @for (grupo of itemsAgrupados(); track grupo.codigo) {
+            <!-- Filas de items -->
+            @for (item of grupo.items; track item.url) {
+              <tr>
+                <td><div class="table-text">{{ item.prod_id?.prov_id }}</div></td>
+                <td><div class="table-text">{{ item.prod_id?.grupo_id }}</div></td>
+                <td><div class="table-text">{{ item.prod_id?.linea_id }}</div></td>
+                <td><div class="prod-code">{{ item.prod_id?.codigo }}</div></td>
+                <td><div class="prod-desc">{{ item.prod_id?.descripcion }}</div></td>
+                <td><div class="table-text">{{ item.almacenaje }}</div></td>
+                <td>
+                  <span class="badge" [class.badge-danger]="item.stock <= 0"
+                    [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
+                    {{ item.stock < 0 ? 0 : item.stock }} </span>
+                </td>
+              </tr>
+            }
+            <!-- Fila de suma por código -->
+            <tr class="summary-row">
+              <td colspan="6" class="summary-text">Suma del Total por Codigo</td>
+              <td class="summary-total">{{ grupo.total }}</td>
+            </tr>
           }
-          @if (stockItems().length === 0 && !loading()) {
+          
+          @if (itemsAgrupados().length === 0 && !loading()) {
           <tr>
-            <td colspan="5" class="no-results">
-              No se encontraron productos que coincidan con la búsqueda en almacenaje.
+            <td colspan="7" class="no-results">
+              No se encontraron productos que coincidan con los filtros seleccionados.
             </td>
           </tr>
           }
