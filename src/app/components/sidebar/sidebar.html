@@ -15,22 +15,23 @@
     <div class="filter-group">
       <div class="combobox-wrapper">
         <input type="text" placeholder="Proveedor"
-          [ngModel]="searchService.filtros().prod_id__prov_id__nombre__contains"
-          (ngModelChange)="onFilterChange('prod_id__prov_id__nombre__contains', $event)"
+          [ngModel]="searchService.filtros().prod_id__prov_id__consolidado__contains"
+          (ngModelChange)="onFilterChange('prod_id__prov_id__consolidado__contains', $event)"
           (blur)="setTimeout(() => showProvs.set(false), 200)">
 
-        @if (!searchService.filtros().prod_id__prov_id__nombre__contains) {
+        @if (!searchService.filtros().prod_id__prov_id__consolidado__contains) {
         <i class="fas fa-search-plus filter-icon"></i>
         } @else {
-        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__prov_id__nombre__contains', '')"></i>
+        <i class="fas fa-times-circle clear-icon"
+          (click)="selectOption('prod_id__prov_id__consolidado__contains', '')"></i>
         }
 
         <!-- Dropdown personalizado -->
         @if (showProvs()) {
         <div class="custom-dropdown">
           @for (p of getFilteredList(filterDataService.proveedores(),
-          searchService.filtros().prod_id__prov_id__nombre__contains); track p) {
-          <div class="dropdown-item" (click)="selectOption('prod_id__prov_id__nombre__contains', p)">
+          searchService.filtros().prod_id__prov_id__consolidado__contains); track p) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__prov_id__consolidado__contains', p)">
             {{ p }}
           </div>
           }

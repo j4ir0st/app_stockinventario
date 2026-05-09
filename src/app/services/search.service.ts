@@ -1,7 +1,7 @@
 import { Injectable, signal } from '@angular/core';
 
 export interface FiltrosBusqueda {
-  prod_id__prov_id__nombre__contains: string;
+  prod_id__prov_id__consolidado__contains: string;
   prod_id__grupo_id__nombre__contains: string;
   prod_id__linea_id__nombre__contains: string;
   buscar: string;
@@ -14,7 +14,7 @@ export interface FiltrosBusqueda {
 export class SearchService {
   // Estado global de los filtros con nombres exactos de la API
   public filtros = signal<FiltrosBusqueda>({
-    prod_id__prov_id__nombre__contains: '',
+    prod_id__prov_id__consolidado__contains: '',
     prod_id__grupo_id__nombre__contains: '',
     prod_id__linea_id__nombre__contains: '',
     buscar: '',
@@ -68,7 +68,7 @@ export class SearchService {
    */
   limpiarFiltros() {
     this.filtros.set({
-      prod_id__prov_id__nombre__contains: '',
+      prod_id__prov_id__consolidado__contains: '',
       prod_id__grupo_id__nombre__contains: '',
       prod_id__linea_id__nombre__contains: '',
       buscar: '',

@@ -7,6 +7,7 @@ export interface User {
   email: string;
   avatar: string | null;
   area: string;
+  area_id: string;
   puesto: string;
   empr_id: string;
   is_staff: boolean;

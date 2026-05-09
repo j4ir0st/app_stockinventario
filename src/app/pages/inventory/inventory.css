@@ -170,6 +170,28 @@
     box-shadow: 0 0 0 3px rgba(255, 101, 195, 0.1);
 }
 
+.btn-clear-search {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+    z-index: 5;
+}
+
+.btn-clear-search:hover {
+    color: var(--primary-pink);
+}
+
 .btn-search {
     height: 36px;
     padding: 0 1.5rem;
@@ -191,6 +213,32 @@
     transform: translateY(-1px);
 }
 
+.zero-stock-toggle {
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    border-left: 1px solid var(--border-color);
+    margin-left: 0.5rem;
+}
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap;
+}
+
+.toggle-container input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary-pink);
+}
+
 .btn-excel {
     height: 36px;
     padding: 0 1.2rem;
@@ -210,6 +258,15 @@
 .btn-excel:hover:not(:disabled) {
     background-color: #218838;
     transform: translateY(-1px);
+}
+
+.btn-excel-blue {
+    background-color: #3b82f6;
+    margin-left: -0.25rem;
+}
+
+.btn-excel-blue:hover:not(:disabled) {
+    background-color: #2563eb;
 }
 
 .progress-container {
@@ -357,6 +414,17 @@
     padding: 3rem !important;
     color: var(--text-muted);
     font-style: italic;
+}
+
+.row-zero {
+    background-color: rgba(255, 77, 77, 0.02) !important;
+}
+
+.text-zero {
+    font-weight: 700;
+    font-style: italic;
+    color: var(--danger);
+    opacity: 0.8;
 }
 
 /* Scrollbar personalizado para modo oscuro */

@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { SidebarService } from '../../services/sidebar.service';
@@ -6,6 +6,7 @@ import { ThemeService } from '../../services/theme.service';
 import { RefreshService } from '../../services/refresh.service';
 import { SearchService } from '../../services/search.service';
 import { FilterDataService } from '../../services/filter-data.service';
+import { ConfigService } from '../../services/config.service';
 
 
 @Component({
@@ -19,6 +20,7 @@ export class HeaderComponent {
   public authService = inject(AuthService);
   public sidebarService = inject(SidebarService);
   public themeService = inject(ThemeService);
+  public configService = inject(ConfigService);
   private refreshService = inject(RefreshService);
   private searchService = inject(SearchService);
   private filterDataService = inject(FilterDataService);
@@ -26,6 +28,8 @@ export class HeaderComponent {
   // Señales para el estado de refresco
   public estaRefrescando = signal(false);
   public mostrarMensajeExito = signal(false);
+  
+  private eRef = inject(ElementRef);
   
   constructor() {
     console.log('HeaderComponent initialized. Current user:', this.authService.currentUser());
@@ -39,6 +43,13 @@ export class HeaderComponent {
 
   toggleProfile() {
     this.isProfileOpen.update((v: boolean) => !v);
+  }
+
+  @HostListener('document:click', ['$event'])
+  clickout(event: any) {
+    if (!this.eRef.nativeElement.contains(event.target)) {
+      this.isProfileOpen.set(false);
+    }
   }
 
   logout() {

@@ -46,7 +46,14 @@ export class ApiService {
       url = this.fixUrl(url);
     }
 
-    return this.http.get<T>(url, { params: finalParams });
+    // Añadir headers para evitar caché del navegador y proxies
+    const headers = {
+      'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0, post-check=0, pre-check=0',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    };
+
+    return this.http.get<T>(url, { params: finalParams, headers });
   }
 
   /**
@@ -71,7 +78,7 @@ export class ApiService {
         finalUrl += (finalUrl.includes('?') ? '&' : '?') + `format=json`;
       }
 
-      return this.http.get<any>(finalUrl);
+      return this.get<any>(finalUrl);
     }
 
     let params = new HttpParams();
@@ -101,7 +108,7 @@ export class ApiService {
       if (!finalUrl.includes('format=json')) {
         finalUrl += (finalUrl.includes('?') ? '&' : '?') + `format=json`;
       }
-      return this.http.get<any>(finalUrl);
+      return this.get<any>(finalUrl);
     }
 
     let httpParams = new HttpParams();

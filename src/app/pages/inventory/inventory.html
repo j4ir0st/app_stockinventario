@@ -7,21 +7,33 @@
           <i class="fas fa-search search-icon"></i>
           <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" (keyup.enter)="buscar()"
             placeholder="Buscar código...">
+          @if (searchTerm()) {
+            <button class="btn-clear-search" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
+              <i class="fas fa-times-circle"></i>
+            </button>
+          }
         </div>
         <button class="btn-search" (click)="buscar()" [disabled]="loading()">
           <i class="fas" [ngClass]="loading() ? 'fa-spinner fa-spin' : 'fa-search'"></i>
         </button>
-        <button class="btn-excel" (click)="$event.stopPropagation(); descargarExcel()" [disabled]="loadingExport()"
+
+        <div class="zero-stock-toggle">
+          <label class="toggle-container">
+            <input type="checkbox" [checked]="verCero()" (change)="toggleVerCero()">
+            <span class="toggle-label">Ver cantidad cero</span>
+          </label>
+        </div>
+        <button class="btn-excel" (click)="$event.stopPropagation(); descargarExcel()" [disabled]="loadingExportGeneral()"
           title="Descargar Todo en Excel">
-          @if (loadingExport()) {
+          @if (loadingExportGeneral()) {
           <div class="progress-container">
             <svg class="progress-svg" viewBox="0 0 36 36">
               <path class="progress-bg"
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-              <path class="progress-fill" [style.stroke-dasharray]="exportProgress() + ', 100'"
+              <path class="progress-fill" [style.stroke-dasharray]="exportProgressGeneral() + ', 100'"
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
             </svg>
-            <span class="progress-text">{{ exportProgress() }}%</span>
+            <span class="progress-text">{{ exportProgressGeneral() }}%</span>
           </div>
           } @else {
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
@@ -34,6 +46,32 @@
           </svg>
           }
         </button>
+
+        @if (authService.currentUser()?.area === 'Heridas & Quemados') {
+        <button class="btn-excel btn-excel-blue" (click)="$event.stopPropagation(); descargarExcelHeridas()"
+          [disabled]="loadingExportHeridas()" title="Descargar Stock Consolidado Heridas">
+          @if (loadingExportHeridas()) {
+          <div class="progress-container">
+            <svg class="progress-svg" viewBox="0 0 36 36">
+              <path class="progress-bg"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path class="progress-fill" [style.stroke-dasharray]="exportProgressHeridas() + ', 100'"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            </svg>
+            <span class="progress-text">{{ exportProgressHeridas() }}%</span>
+          </div>
+          } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="8" y1="13" x2="16" y2="13" />
+            <line x1="8" y1="17" x2="16" y2="17" />
+            <line x1="10" y1="9" x2="8" y2="9" />
+          </svg>
+          }
+        </button>
+        }
       </div>
 
       <div class="pagination-controls">
@@ -58,6 +96,7 @@
             <th>PROVEEDOR</th>
             <th>GRUPO</th>
             <th>LINEA</th>
+            <th>TIPO</th>
             <th>CÓDIGO</th>
             <th>DESCRIPCIÓN</th>
             <th>EMPRESA Y DEPOSITO</th>
@@ -65,16 +104,17 @@
           </tr>
         </thead>
         <tbody>
-          @for (grupo of itemsAgrupados(); track grupo.codigo) {
+          @for (grupo of itemsAgrupados(); track grupo.key) {
             <!-- Filas de items -->
             @for (item of grupo.items; track item.url) {
-              <tr>
+              <tr [class.row-zero]="item.esEspecialCero">
                 <td><div class="table-text">{{ item.prod_id?.prov_id }}</div></td>
                 <td><div class="table-text">{{ item.prod_id?.grupo_id }}</div></td>
                 <td><div class="table-text">{{ item.prod_id?.linea_id }}</div></td>
+                <td><div class="table-text">{{ item.prod_id?.tipo }}</div></td>
                 <td><div class="prod-code">{{ item.prod_id?.codigo }}</div></td>
                 <td><div class="prod-desc">{{ item.prod_id?.descripcion }}</div></td>
-                <td><div class="table-text">{{ item.almacenaje }}</div></td>
+                <td><div class="table-text" [class.text-zero]="item.esEspecialCero">{{ item.almacenaje }}</div></td>
                 <td>
                   <span class="badge" [class.badge-danger]="item.stock <= 0"
                     [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
@@ -84,14 +124,14 @@
             }
             <!-- Fila de suma por código -->
             <tr class="summary-row">
-              <td colspan="6" class="summary-text">Suma del Total por Codigo</td>
+              <td colspan="7" class="summary-text">Suma del Total por Codigo</td>
               <td class="summary-total">{{ grupo.total }}</td>
             </tr>
           }
           
           @if (itemsAgrupados().length === 0 && !loading()) {
           <tr>
-            <td colspan="7" class="no-results">
+            <td colspan="8" class="no-results">
               No se encontraron productos que coincidan con los filtros seleccionados.
             </td>
           </tr>

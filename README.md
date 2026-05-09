@@ -32,6 +32,9 @@ Para desplegar la aplicación en un servidor, se utiliza Docker. El proceso comp
 
 | Versión | Fecha | Descripción de Cambios |
 | :--- | :--- | :--- |
+| **0.5.3** | 2026-05-08 | Mejoras de UX y Datos: Cierre automático del menú de perfil al hacer clic fuera, corrección del campo 'Tipo' en tabla y Excel, y optimización de exportación a Excel (exclusión de stock cero e inclusión de subtotales agrupados). Corrección de bucle infinito en búsqueda. |
+| **0.5.2** | 2026-05-07 | Interfaz y Filtrado: Nueva columna de tipo, check de stock cero con lógica de registro especial ("STOCK CERO"), búsqueda en tiempo real con botón de limpieza y modernización de colores en login. |
+| **0.5.1** | 2026-05-07 | Corrección de Autenticación: Se actualizó el interceptor de Angular para asegurar que el token JWT (Bearer) se envíe en todas las peticiones a las tablas de la API (StockInventario, StockAprobado, etc.), corrigiendo el error de "credenciales no provistas". |
 | **0.5.0** | 2026-05-06 | Estabilización y Optimización: Migración a `firstValueFrom` (RxJS), nuevos dropdowns personalizados en sidebar con búsqueda en tiempo real, botones de limpieza individual (X) y lógica de filtrado OR por tipo de producto (`tipo_producto=CIN,IM`). Corrección de bug de paginación en ApiService e implementación de lógica 'Distinct' para listas maestras. Integración de imagen de montacarga en header. |
 | **0.4.0** | 2026-05-05 | Rediseño estético: Sidebar rosa (#ff65c3) y Header gris (#d9d9d9). Nuevos filtros tipo combobox en sidebar (Proveedor, Grupo, Línea). Agrupación y suma de stock por código de producto. Renombramiento de columnas para mayor claridad. |
 

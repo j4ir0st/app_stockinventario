@@ -41,7 +41,7 @@
       <div class="user-profile" (click)="toggleProfile()">
         <div class="user-info">
           <span class="user-name">{{ user.first_name }} {{ user.last_name }}</span>
-          <span class="user-area">{{ user.area }} - {{ user.puesto }}</span>
+          <span class="user-area">{{ user.area_id }} - {{ user.puesto }}</span>
         </div>
         <div class="user-avatar">
           <img [src]="user.avatar || 'assets/images/default-avatar.png'" alt="Avatar">
@@ -56,14 +56,14 @@
       <div class="profile-card">
         <div class="profile-card-header">
           <span class="profile-full-name">{{ user.full_name }}</span>
-          <span class="profile-detail">{{ user.area }} - {{ user.puesto }}</span>
+          <span class="profile-detail">{{ user.area_id }} - {{ user.puesto }}</span>
           <span class="profile-email">{{ user.email }}</span>
           <span class="profile-company">{{ user.empr_id }}</span>
         </div>
 
         <div class="profile-card-body">
           @if (user.is_staff) {
-          <a href="https://appsurgicorperu.com/admin" target="_blank" class="admin-link">
+          <a [href]="configService.apiUrl() + 'admin'" target="_blank" class="admin-link">
             <i class="icon">⚙️</i> Administrador
           </a>
           }

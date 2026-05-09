@@ -7,6 +7,7 @@ import { ApiService } from '../../services/api.service';
 import { ThemeService } from '../../services/theme.service';
 import { RefreshService } from '../../services/refresh.service';
 import { SearchService } from '../../services/search.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-inventory',
@@ -20,6 +21,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
   public themeService = inject(ThemeService);
   private refreshService = inject(RefreshService);
   public searchService = inject(SearchService);
+  public authService = inject(AuthService);
 
   private suscripcionRefresco?: Subscription;
   private eRef = inject(ElementRef);
@@ -39,8 +41,15 @@ export class InventoryComponent implements OnInit, OnDestroy {
   prevUrl = signal<string | null>(null);
   totalCount = signal(0);
   paginaActual = signal(1);
-  loadingExport = signal(false);
-  exportProgress = signal(0);
+  
+  // Estados de exportación independientes
+  loadingExportGeneral = signal(false);
+  exportProgressGeneral = signal(0);
+  loadingExportHeridas = signal(false);
+  exportProgressHeridas = signal(0);
+
+  // Ver registros con stock cero
+  verCero = signal(false);
 
   constructor() {
     // Reaccionar a cambios en los filtros del sidebar
@@ -48,6 +57,24 @@ export class InventoryComponent implements OnInit, OnDestroy {
       const filtros = this.searchService.filtros();
       console.log('Filtros cambiados, recargando stock...', filtros);
       untracked(() => this.cargarStock());
+    });
+
+    // Reaccionar a cambios en el término de búsqueda (As you type)
+    effect(() => {
+      const term = this.searchTerm();
+      if (term.length >= 3 || term.length === 0) {
+        untracked(() => this.buscar());
+      }
+    });
+
+    // Reaccionar al cambio del check de stock cero
+    effect(() => {
+      this.verCero();
+      untracked(() => {
+        if (this.stockItems().length > 0) {
+          this.procesarResultados({ results: this.stockItems(), count: this.totalCount(), next: this.nextUrl(), previous: this.prevUrl() }, false);
+        }
+      });
     });
   }
 
@@ -58,7 +85,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.searchService.actualizarFecha();
       // Solo cargamos si los filtros ya están vacíos (porque el effect no se disparará)
       const f = this.searchService.filtros();
-      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__nombre__contains && !f.prod_id__grupo_id__nombre__contains && !f.prod_id__linea_id__nombre__contains;
+      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__consolidado__contains && !f.prod_id__grupo_id__nombre__contains && !f.prod_id__linea_id__nombre__contains;
 
       if (isEmpty) {
         this.cargarStock();
@@ -98,55 +125,103 @@ export class InventoryComponent implements OnInit, OnDestroy {
     });
   }
 
-  private procesarResultados(data: any): void {
+  private procesarResultados(data: any, esNuevaCarga = true): void {
     console.log('Procesando resultados StockInventario:', data);
-    const results = data.results || (Array.isArray(data) ? data : []);
+    const rawResults = data.results || (Array.isArray(data) ? data : []);
 
-    this.stockItems.set(results);
+    if (esNuevaCarga) {
+      this.stockItems.set(rawResults);
+      this.nextUrl.set(data.next || null);
+      this.prevUrl.set(data.previous || null);
+      this.totalCount.set(data.count || rawResults.length);
+    }
 
-    // Agrupar y sumar por código (asumiendo que vienen ordenados del backend)
+    // Lógica de filtrado y transformación por "Ver Cero"
+    const verCero = this.verCero();
+
+    // Primero agrupamos por código + tipo para aplicar la lógica especial
+    const gruposMapa = new Map<string, any[]>();
+
+    rawResults.forEach((item: any) => {
+      const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
+      if (!gruposMapa.has(key)) {
+        gruposMapa.set(key, []);
+      }
+      gruposMapa.get(key)?.push(item);
+    });
+
+    const resultsProcesados: any[] = [];
+
+    gruposMapa.forEach((items, key) => {
+      const totalStockGrupo = items.reduce((sum, i) => sum + (i.stock || 0), 0);
+
+      if (totalStockGrupo > 0) {
+        // Si hay stock, filtramos los items individuales si verCero es false
+        items.forEach(item => {
+          if (verCero || (item.stock || 0) > 0) {
+            resultsProcesados.push(item);
+          }
+        });
+      } else {
+        // Si el total es 0 o menor, solo mostramos si verCero es true 
+        // O si queremos el registro especial de "STOCK CERO"
+        if (verCero) {
+          items.forEach(item => resultsProcesados.push(item));
+        } else {
+          // Caso especial: registro único "STOCK CERO" para que aparezca la suma
+          const primerItem = items[0];
+          if (primerItem) {
+            resultsProcesados.push({
+              ...primerItem,
+              almacenaje: 'STOCK CERO',
+              stock: 0,
+              esEspecialCero: true
+            });
+          }
+        }
+      }
+    });
+
+    // Agrupar y sumar por código + tipo para la visualización final
     const agrupados: any[] = [];
     let currentGroup: any[] = [];
-    let lastCode = '';
+    let lastGroupKey = '';
 
-    results.forEach((item: any, index: number) => {
-      const code = item.prod_id?.codigo || '';
+    resultsProcesados.forEach((item: any, index: number) => {
+      const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
 
       if (index === 0) {
-        lastCode = code;
+        lastGroupKey = key;
         currentGroup.push(item);
-      } else if (code === lastCode) {
+      } else if (key === lastGroupKey) {
         currentGroup.push(item);
       } else {
-        // Cerrar grupo anterior
         const total = currentGroup.reduce((sum, i) => sum + (i.stock || 0), 0);
         agrupados.push({
           items: currentGroup,
-          codigo: lastCode,
+          key: lastGroupKey,
+          codigo: currentGroup[0].prod_id?.codigo,
+          tipo: currentGroup[0].prod_id?.tipo,
           total: total
         });
 
-        // Empezar nuevo grupo
-        lastCode = code;
+        lastGroupKey = key;
         currentGroup = [item];
       }
 
-      // Si es el último item, cerrar el grupo actual
-      if (index === results.length - 1) {
+      if (index === resultsProcesados.length - 1) {
         const total = currentGroup.reduce((sum, i) => sum + (i.stock || 0), 0);
         agrupados.push({
           items: currentGroup,
-          codigo: lastCode,
+          key: lastGroupKey,
+          codigo: currentGroup[0].prod_id?.codigo,
+          tipo: currentGroup[0].prod_id?.tipo,
           total: total
         });
       }
     });
 
-
     this.itemsAgrupados.set(agrupados);
-    this.nextUrl.set(data.next || null);
-    this.prevUrl.set(data.previous || null);
-    this.totalCount.set(data.count || results.length);
     this.loading.set(false);
 
     // Resetear scroll al inicio de la tabla
@@ -176,17 +251,49 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
   /**
    * Descarga todos los registros de la búsqueda actual en un archivo Excel.
-   * Optimizado: Carga páginas en paralelo y muestra progreso.
    */
   async descargarExcel() {
-    if (this.loadingExport()) return;
+    const filtros = this.searchService.filtros();
+    await this.ejecutarExportacionExcel(
+      filtros, 
+      'Stock_Almacenaje', 
+      this.loadingExportGeneral, 
+      this.exportProgressGeneral
+    );
+  }
 
-    this.loadingExport.set(true);
-    this.exportProgress.set(0);
-    console.log('Iniciando exportación a Excel paralela (Almacenaje)...');
+  /**
+   * Descarga el stock total con filtros específicos para el área de Heridas.
+   */
+  async descargarExcelHeridas() {
+    const filtros = {
+      ...this.searchService.filtros(),
+      tipo_almacenaje__in: 'INKJET,IMPORTACION EN PROCESO DE APROBACION,STOCK DISPONIBLE,DEVOLUCION EN PROCESO,COMPRA LOCAL EN PROCESO DE REVISION'
+    };
+    await this.ejecutarExportacionExcel(
+      filtros, 
+      'Stock_Heridas_Quemados', 
+      this.loadingExportHeridas, 
+      this.exportProgressHeridas
+    );
+  }
+
+  /**
+   * Lógica base optimizada para exportación a Excel.
+   */
+  private async ejecutarExportacionExcel(
+    filtros: any, 
+    baseFileName: string, 
+    loadingSignal: any, 
+    progressSignal: any
+  ) {
+    if (loadingSignal()) return;
+
+    loadingSignal.set(true);
+    progressSignal.set(0);
+    console.log(`Iniciando exportación a Excel paralela (${baseFileName})...`);
 
     try {
-      const filtros = this.searchService.filtros();
       const top = 1000;
 
       // Primera llamada para obtener el conteo total y la primera página
@@ -201,21 +308,20 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
       if (totalRecords === 0) {
         alert('No hay datos para exportar');
-        this.loadingExport.set(false);
+        loadingSignal.set(false);
         return;
       }
 
       const totalPages = Math.ceil(totalRecords / top);
-      this.exportProgress.set(Math.round((1 / totalPages) * 100));
+      progressSignal.set(Math.round((1 / totalPages) * 100));
 
       if (totalPages > 1) {
         const promises: Promise<any>[] = [];
         for (let i = 2; i <= totalPages; i++) {
-          // Clonar filtros y añadir página
           const pageParams = { ...filtros, page: i, top: top };
           const p = firstValueFrom(this.apiService.getStockInventario(pageParams)).then((resp: any) => {
-            const currentProgress = this.exportProgress();
-            this.exportProgress.set(Math.min(99, currentProgress + Math.round((1 / totalPages) * 100)));
+            const currentProgress = progressSignal();
+            progressSignal.set(Math.min(99, currentProgress + Math.round((1 / totalPages) * 100)));
             return resp.results || [];
           });
           promises.push(p);
@@ -227,36 +333,88 @@ export class InventoryComponent implements OnInit, OnDestroy {
         });
       }
 
-      this.exportProgress.set(100);
+      progressSignal.set(100);
 
-      // Formatear los datos para el Excel según el nuevo orden
-      const dataToExport = allData.map(item => ({
-        'PROVEEDOR': item.prod_id?.prov_id || '',
-        'GRUPO': item.prod_id?.grupo_id || '',
-        'LINEA': item.prod_id?.linea_id || '',
-        'CÓDIGO': item.prod_id?.codigo || '',
-        'DESCRIPCIÓN': item.prod_id?.descripcion || '',
-        'EMPRESA Y DEPOSITO': item.almacenaje || '',
-        'CANTIDAD': item.stock || 0
-      }));
+      // Filtrar registros con stock <= 0 (siempre se excluyen en el Excel)
+      const filteredData = allData.filter(item => (item.stock || 0) > 0);
 
-      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      // Agrupar datos para insertar subtotales
+      const excelRows: any[] = [];
+      let currentGroupKey = '';
+      let currentGroupSum = 0;
+
+      filteredData.forEach((item, index) => {
+        const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
+
+        if (index > 0 && key !== currentGroupKey) {
+          excelRows.push({
+            'PROVEEDOR': '-',
+            'GRUPO': '-',
+            'LINEA': '-',
+            'TIPO': '-',
+            'CÓDIGO': '-',
+            'DESCRIPCIÓN': 'SUMA DEL TOTAL POR CÓDIGO',
+            'EMPRESA Y DEPOSITO': '-',
+            'CANTIDAD': currentGroupSum
+          });
+          currentGroupSum = 0;
+        }
+
+        currentGroupKey = key;
+        currentGroupSum += (item.stock || 0);
+
+        excelRows.push({
+          'PROVEEDOR': item.prod_id?.prov_id || '',
+          'GRUPO': item.prod_id?.grupo_id || '',
+          'LINEA': item.prod_id?.linea_id || '',
+          'TIPO': item.prod_id?.tipo || '',
+          'CÓDIGO': item.prod_id?.codigo || '',
+          'DESCRIPCIÓN': item.prod_id?.descripcion || '',
+          'EMPRESA Y DEPOSITO': item.almacenaje || '',
+          'CANTIDAD': item.stock || 0
+        });
+
+        if (index === filteredData.length - 1) {
+          excelRows.push({
+            'PROVEEDOR': '-',
+            'GRUPO': '-',
+            'LINEA': '-',
+            'TIPO': '-',
+            'CÓDIGO': '-',
+            'DESCRIPCIÓN': 'SUMA DEL TOTAL POR CÓDIGO',
+            'EMPRESA Y DEPOSITO': '-',
+            'CANTIDAD': currentGroupSum
+          });
+        }
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Almacenaje');
 
-      const fileName = `Stock_Almacenaje_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `${baseFileName}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, fileName);
     } catch (error) {
       console.error('Error exportando a Excel:', error);
       alert('Error al generar el archivo Excel');
     } finally {
-      this.loadingExport.set(false);
+      loadingSignal.set(false);
     }
   }
 
   buscar(): void {
+    if (this.searchService.filtros().buscar === this.searchTerm()) return;
     this.searchService.patchFiltros('buscar', this.searchTerm());
-    this.cargarStock();
+    // this.buscar();
+  }
+
+  limpiarBusqueda(): void {
+    this.searchTerm.set('');
+    this.buscar();
+  }
+
+  toggleVerCero(): void {
+    this.verCero.update(v => !v);
   }
 
 }

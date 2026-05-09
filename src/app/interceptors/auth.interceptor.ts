@@ -12,7 +12,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = authService.token;
 
   // Solo interceptamos peticiones que van hacia nuestro proxy para evitar enviar tokens a dominios externos
-  if (req.url.includes(window.location.origin) || req.url.startsWith('/api/') || req.url.includes('StockAprobado')) {
+  // Se incluye StockInventario y cualquier ruta relativa que comience con /
+  const esPeticionApi = req.url.includes(window.location.origin) || 
+                         req.url.startsWith('/api/') || 
+                         req.url.startsWith('/') ||
+                         req.url.includes('StockAprobado') || 
+                         req.url.includes('StockInventario');
+
+  if (esPeticionApi) {
     let headers = req.headers;
     
     if (token) {
