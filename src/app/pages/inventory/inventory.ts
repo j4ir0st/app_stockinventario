@@ -41,7 +41,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
   prevUrl = signal<string | null>(null);
   totalCount = signal(0);
   paginaActual = signal(1);
-  
+
   // Estados de exportación independientes
   loadingExportGeneral = signal(false);
   exportProgressGeneral = signal(0);
@@ -85,7 +85,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.searchService.actualizarFecha();
       // Solo cargamos si los filtros ya están vacíos (porque el effect no se disparará)
       const f = this.searchService.filtros();
-      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__consolidado__contains && !f.prod_id__grupo_id__nombre__contains && !f.prod_id__linea_id__nombre__contains;
+      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__consolidado && !f.prod_id__grupo_id__nombre && !f.prod_id__linea_id__nombre;
 
       if (isEmpty) {
         this.cargarStock();
@@ -255,9 +255,9 @@ export class InventoryComponent implements OnInit, OnDestroy {
   async descargarExcel() {
     const filtros = this.searchService.filtros();
     await this.ejecutarExportacionExcel(
-      filtros, 
-      'Stock_Almacenaje', 
-      this.loadingExportGeneral, 
+      filtros,
+      'Stock_Almacenaje',
+      this.loadingExportGeneral,
       this.exportProgressGeneral
     );
   }
@@ -271,9 +271,9 @@ export class InventoryComponent implements OnInit, OnDestroy {
       tipo_almacenaje__in: 'INKJET,IMPORTACION EN PROCESO DE APROBACION,STOCK DISPONIBLE,DEVOLUCION EN PROCESO,COMPRA LOCAL EN PROCESO DE REVISION'
     };
     await this.ejecutarExportacionExcel(
-      filtros, 
-      'Stock_Heridas_Quemados', 
-      this.loadingExportHeridas, 
+      filtros,
+      'Stock_Heridas_Quemados',
+      this.loadingExportHeridas,
       this.exportProgressHeridas
     );
   }
@@ -282,9 +282,9 @@ export class InventoryComponent implements OnInit, OnDestroy {
    * Lógica base optimizada para exportación a Excel.
    */
   private async ejecutarExportacionExcel(
-    filtros: any, 
-    baseFileName: string, 
-    loadingSignal: any, 
+    filtros: any,
+    baseFileName: string,
+    loadingSignal: any,
     progressSignal: any
   ) {
     if (loadingSignal()) return;

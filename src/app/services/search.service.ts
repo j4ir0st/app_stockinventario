@@ -1,9 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 
 export interface FiltrosBusqueda {
-  prod_id__prov_id__consolidado__contains: string;
-  prod_id__grupo_id__nombre__contains: string;
-  prod_id__linea_id__nombre__contains: string;
+  prod_id__prov_id__consolidado: string;
+  prod_id__grupo_id__nombre: string;
+  prod_id__linea_id__nombre: string;
   buscar: string;
   tipo_producto: string; // Para MER e IM-CIN (CIN,IM)
 }
@@ -14,11 +14,11 @@ export interface FiltrosBusqueda {
 export class SearchService {
   // Estado global de los filtros con nombres exactos de la API
   public filtros = signal<FiltrosBusqueda>({
-    prod_id__prov_id__consolidado__contains: '',
-    prod_id__grupo_id__nombre__contains: '',
-    prod_id__linea_id__nombre__contains: '',
+    prod_id__prov_id__consolidado: '',
+    prod_id__grupo_id__nombre: '',
+    prod_id__linea_id__nombre: '',
     buscar: '',
-    tipo_producto: ''
+    tipo_producto: 'MER'
   });
 
 
@@ -68,11 +68,11 @@ export class SearchService {
    */
   limpiarFiltros() {
     this.filtros.set({
-      prod_id__prov_id__consolidado__contains: '',
-      prod_id__grupo_id__nombre__contains: '',
-      prod_id__linea_id__nombre__contains: '',
+      prod_id__prov_id__consolidado: '',
+      prod_id__grupo_id__nombre: '',
+      prod_id__linea_id__nombre: '',
       buscar: '',
-      tipo_producto: ''
+      tipo_producto: 'MER'
     });
 
   }

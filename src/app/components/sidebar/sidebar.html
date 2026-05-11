@@ -14,24 +14,21 @@
     <!-- Filtro Proveedor -->
     <div class="filter-group">
       <div class="combobox-wrapper">
-        <input type="text" placeholder="Proveedor"
-          [ngModel]="searchService.filtros().prod_id__prov_id__consolidado__contains"
-          (ngModelChange)="onFilterChange('prod_id__prov_id__consolidado__contains', $event)"
+        <i class="fas fa-search filter-icon"></i>
+        <input type="text" placeholder="Proveedor" [ngModel]="searchService.filtros().prod_id__prov_id__consolidado"
+          (ngModelChange)="onFilterChange('prod_id__prov_id__consolidado', $event)"
           (blur)="setTimeout(() => showProvs.set(false), 200)">
 
-        @if (!searchService.filtros().prod_id__prov_id__consolidado__contains) {
-        <i class="fas fa-search-plus filter-icon"></i>
-        } @else {
-        <i class="fas fa-times-circle clear-icon"
-          (click)="selectOption('prod_id__prov_id__consolidado__contains', '')"></i>
+        @if (searchService.filtros().prod_id__prov_id__consolidado) {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__prov_id__consolidado', '')"></i>
         }
 
         <!-- Dropdown personalizado -->
         @if (showProvs()) {
         <div class="custom-dropdown">
           @for (p of getFilteredList(filterDataService.proveedores(),
-          searchService.filtros().prod_id__prov_id__consolidado__contains); track p) {
-          <div class="dropdown-item" (click)="selectOption('prod_id__prov_id__consolidado__contains', p)">
+          searchService.filtros().prod_id__prov_id__consolidado); track p) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__prov_id__consolidado', p)">
             {{ p }}
           </div>
           }
@@ -43,22 +40,21 @@
     <!-- Filtro Grupo -->
     <div class="filter-group">
       <div class="combobox-wrapper">
-        <input type="text" placeholder="Grupo" [ngModel]="searchService.filtros().prod_id__grupo_id__nombre__contains"
-          (ngModelChange)="onFilterChange('prod_id__grupo_id__nombre__contains', $event)"
+        <i class="fas fa-search filter-icon"></i>
+        <input type="text" placeholder="Grupo" [ngModel]="searchService.filtros().prod_id__grupo_id__nombre"
+          (ngModelChange)="onFilterChange('prod_id__grupo_id__nombre', $event)"
           (blur)="setTimeout(() => showGroups.set(false), 200)">
 
-        @if (!searchService.filtros().prod_id__grupo_id__nombre__contains) {
-        <i class="fas fa-search-plus filter-icon"></i>
-        } @else {
-        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__grupo_id__nombre__contains', '')"></i>
+        @if (searchService.filtros().prod_id__grupo_id__nombre) {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__grupo_id__nombre', '')"></i>
         }
 
         <!-- Dropdown personalizado -->
         @if (showGroups()) {
         <div class="custom-dropdown">
           @for (g of getFilteredList(filterDataService.grupos(),
-          searchService.filtros().prod_id__grupo_id__nombre__contains); track g) {
-          <div class="dropdown-item" (click)="selectOption('prod_id__grupo_id__nombre__contains', g)">
+          searchService.filtros().prod_id__grupo_id__nombre); track g) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__grupo_id__nombre', g)">
             {{ g }}
           </div>
           }
@@ -70,22 +66,21 @@
     <!-- Filtro Linea -->
     <div class="filter-group">
       <div class="combobox-wrapper">
-        <input type="text" placeholder="Linea" [ngModel]="searchService.filtros().prod_id__linea_id__nombre__contains"
-          (ngModelChange)="onFilterChange('prod_id__linea_id__nombre__contains', $event)"
+        <i class="fas fa-search filter-icon"></i>
+        <input type="text" placeholder="Linea" [ngModel]="searchService.filtros().prod_id__linea_id__nombre"
+          (ngModelChange)="onFilterChange('prod_id__linea_id__nombre', $event)"
           (blur)="setTimeout(() => showLines.set(false), 200)">
 
-        @if (!searchService.filtros().prod_id__linea_id__nombre__contains) {
-        <i class="fas fa-search-plus filter-icon"></i>
-        } @else {
-        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__linea_id__nombre__contains', '')"></i>
+        @if (searchService.filtros().prod_id__linea_id__nombre) {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('prod_id__linea_id__nombre', '')"></i>
         }
 
         <!-- Dropdown personalizado -->
         @if (showLines()) {
         <div class="custom-dropdown">
           @for (l of getFilteredList(filterDataService.lineas(),
-          searchService.filtros().prod_id__linea_id__nombre__contains); track l) {
-          <div class="dropdown-item" (click)="selectOption('prod_id__linea_id__nombre__contains', l)">
+          searchService.filtros().prod_id__linea_id__nombre); track l) {
+          <div class="dropdown-item" (click)="selectOption('prod_id__linea_id__nombre', l)">
             {{ l }}
           </div>
           }

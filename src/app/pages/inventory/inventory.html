@@ -1,16 +1,16 @@
 <div class="inventory-container" [class.dark-mode]="themeService.currentTheme() === 'dark'">
   <div class="inventory-wrapper">
-    <!-- Header Compacto: Buscador + Paginación (Restaurado) -->
+    <!-- Header Compacto: Buscador + Paginación -->
     <div class="search-header">
       <div class="search-box">
         <div class="input-wrapper">
           <i class="fas fa-search search-icon"></i>
           <input type="text" [ngModel]="searchTerm()" (ngModelChange)="searchTerm.set($event)" (keyup.enter)="buscar()"
-            placeholder="Buscar código...">
+            placeholder="Busqueda por código, descripción y/o tipo de almacenaje">
           @if (searchTerm()) {
-            <button class="btn-clear-search" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
-              <i class="fas fa-times-circle"></i>
-            </button>
+          <button class="btn-clear-search" (click)="limpiarBusqueda()" title="Limpiar búsqueda">
+            <i class="fas fa-times-circle"></i>
+          </button>
           }
         </div>
         <button class="btn-search" (click)="buscar()" [disabled]="loading()">
@@ -23,8 +23,8 @@
             <span class="toggle-label">Ver cantidad cero</span>
           </label>
         </div>
-        <button class="btn-excel" (click)="$event.stopPropagation(); descargarExcel()" [disabled]="loadingExportGeneral()"
-          title="Descargar Todo en Excel">
+        <button class="btn-excel" (click)="$event.stopPropagation(); descargarExcel()"
+          [disabled]="loadingExportGeneral()" title="Descargar Todo en Excel">
           @if (loadingExportGeneral()) {
           <div class="progress-container">
             <svg class="progress-svg" viewBox="0 0 36 36">
@@ -105,30 +105,44 @@
         </thead>
         <tbody>
           @for (grupo of itemsAgrupados(); track grupo.key) {
-            <!-- Filas de items -->
-            @for (item of grupo.items; track item.url) {
-              <tr [class.row-zero]="item.esEspecialCero">
-                <td><div class="table-text">{{ item.prod_id?.prov_id }}</div></td>
-                <td><div class="table-text">{{ item.prod_id?.grupo_id }}</div></td>
-                <td><div class="table-text">{{ item.prod_id?.linea_id }}</div></td>
-                <td><div class="table-text">{{ item.prod_id?.tipo }}</div></td>
-                <td><div class="prod-code">{{ item.prod_id?.codigo }}</div></td>
-                <td><div class="prod-desc">{{ item.prod_id?.descripcion }}</div></td>
-                <td><div class="table-text" [class.text-zero]="item.esEspecialCero">{{ item.almacenaje }}</div></td>
-                <td>
-                  <span class="badge" [class.badge-danger]="item.stock <= 0"
-                    [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
-                    {{ item.stock < 0 ? 0 : item.stock }} </span>
-                </td>
-              </tr>
-            }
-            <!-- Fila de suma por código -->
-            <tr class="summary-row">
-              <td colspan="7" class="summary-text">Suma del Total por Codigo</td>
-              <td class="summary-total">{{ grupo.total }}</td>
-            </tr>
+          <!-- Filas de items -->
+          @for (item of grupo.items; track item.url) {
+          <tr [class.row-zero]="item.esEspecialCero">
+            <td>
+              <div class="table-text">{{ item.prod_id?.prov_id }}</div>
+            </td>
+            <td>
+              <div class="table-text">{{ item.prod_id?.grupo_id }}</div>
+            </td>
+            <td>
+              <div class="table-text">{{ item.prod_id?.linea_id }}</div>
+            </td>
+            <td>
+              <div class="table-text">{{ item.prod_id?.tipo }}</div>
+            </td>
+            <td>
+              <div class="prod-code">{{ item.prod_id?.codigo }}</div>
+            </td>
+            <td>
+              <div class="prod-desc">{{ item.prod_id?.descripcion }}</div>
+            </td>
+            <td>
+              <div class="table-text" [class.text-zero]="item.esEspecialCero">{{ item.almacenaje }}</div>
+            </td>
+            <td>
+              <span class="badge" [class.badge-danger]="item.stock <= 0"
+                [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
+                {{ item.stock < 0 ? 0 : item.stock }} </span>
+            </td>
+          </tr>
           }
-          
+          <!-- Fila de suma por código -->
+          <tr class="summary-row">
+            <td colspan="7" class="summary-text">Suma del Total por Codigo</td>
+            <td class="summary-total">{{ grupo.total }}</td>
+          </tr>
+          }
+
           @if (itemsAgrupados().length === 0 && !loading()) {
           <tr>
             <td colspan="8" class="no-results">
