@@ -18,7 +18,7 @@ export class SearchService {
     prod_id__grupo_id__nombre: '',
     prod_id__linea_id__nombre: '',
     buscar: '',
-    tipo_producto: 'MER'
+    tipo_producto: 'MER,ME2'
   });
 
 
@@ -72,7 +72,7 @@ export class SearchService {
       prod_id__grupo_id__nombre: '',
       prod_id__linea_id__nombre: '',
       buscar: '',
-      tipo_producto: 'MER'
+      tipo_producto: 'MER,ME2'
     });
 
   }

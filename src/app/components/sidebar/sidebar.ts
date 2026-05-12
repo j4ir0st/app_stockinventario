@@ -67,8 +67,8 @@ export class SidebarComponent {
     const current = this.searchService.filtros().tipo_producto;
     let newValue = '';
 
-    if (tipo === 'MER') {
-      newValue = current === 'MER' ? '' : 'MER';
+    if (tipo === 'MER-ME2') {
+      newValue = current === 'MER,ME2' ? '' : 'MER,ME2';
     } else if (tipo === 'IM-CIN') {
       // Usamos el nuevo parámetro de backend que soporta OR (CIN,IM)
       newValue = current === 'CIN,IM' ? '' : 'CIN,IM';

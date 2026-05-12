@@ -94,8 +94,8 @@
     <div class="tipo-section">
       <div class="tipo-title">TIPO DE PRODUCTO</div>
       <div class="tipo-buttons">
-        <button class="btn-tipo" [class.active]="searchService.filtros().tipo_producto === 'MER'"
-          (click)="setTipo('MER')">MER</button>
+        <button class="btn-tipo" [class.active]="searchService.filtros().tipo_producto === 'MER,ME2'"
+          (click)="setTipo('MER-ME2')">MER-ME2</button>
         <button class="btn-tipo" [class.active]="searchService.filtros().tipo_producto === 'CIN,IM'"
           (click)="setTipo('IM-CIN')">IM-CIN</button>
       </div>
