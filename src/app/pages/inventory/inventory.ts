@@ -258,7 +258,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
       filtros,
       'Stock_Almacenaje',
       this.loadingExportGeneral,
-      this.exportProgressGeneral
+      this.exportProgressGeneral,
+      true // Incluir subtotales en el reporte general
     );
   }
 
@@ -274,7 +275,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
       filtros,
       'Stock_Heridas_Quemados',
       this.loadingExportHeridas,
-      this.exportProgressHeridas
+      this.exportProgressHeridas,
+      false // No incluir subtotales en el reporte de heridas y quemados
     );
   }
 
@@ -285,7 +287,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
     filtros: any,
     baseFileName: string,
     loadingSignal: any,
-    progressSignal: any
+    progressSignal: any,
+    incluirSubtotales: boolean = true
   ) {
     if (loadingSignal()) return;
 
@@ -338,7 +341,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       // Filtrar registros con stock <= 0 (siempre se excluyen en el Excel)
       const filteredData = allData.filter(item => (item.stock || 0) > 0);
 
-      // Agrupar datos para insertar subtotales
+      // Procesar datos para Excel (con o sin subtotales)
       const excelRows: any[] = [];
       let currentGroupKey = '';
       let currentGroupSum = 0;
@@ -346,7 +349,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
       filteredData.forEach((item, index) => {
         const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
 
-        if (index > 0 && key !== currentGroupKey) {
+        // Si se requieren subtotales y cambiamos de grupo, insertamos la fila de suma
+        if (incluirSubtotales && index > 0 && key !== currentGroupKey) {
           excelRows.push({
             'PROVEEDOR': '-',
             'GRUPO': '-',
@@ -363,6 +367,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
         currentGroupKey = key;
         currentGroupSum += (item.stock || 0);
 
+        // Fila del item individual
         excelRows.push({
           'PROVEEDOR': item.prod_id?.prov_id || '',
           'GRUPO': item.prod_id?.grupo_id || '',
@@ -374,7 +379,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
           'CANTIDAD': item.stock || 0
         });
 
-        if (index === filteredData.length - 1) {
+        // Al llegar al final, si se requieren subtotales, insertamos la última suma
+        if (incluirSubtotales && index === filteredData.length - 1) {
           excelRows.push({
             'PROVEEDOR': '-',
             'GRUPO': '-',

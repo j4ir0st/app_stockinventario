@@ -32,6 +32,7 @@ Para desplegar la aplicación en un servidor, se utiliza Docker. El proceso comp
 
 | Versión | Fecha | Descripción de Cambios |
 | :--- | :--- | :--- |
+| **0.5.4** | 2026-05-12 | Diferenciación de Reportes: Se eliminaron los subtotales por código del reporte de Heridas y Quemados, manteniéndolos únicamente en el Reporte General. Optimización de la función de exportación compartida. |
 | **0.5.3** | 2026-05-08 | Mejoras de UX y Datos: Cierre automático del menú de perfil al hacer clic fuera, corrección del campo 'Tipo' en tabla y Excel, y optimización de exportación a Excel (exclusión de stock cero e inclusión de subtotales agrupados). Corrección de bucle infinito en búsqueda. |
 | **0.5.2** | 2026-05-07 | Interfaz y Filtrado: Nueva columna de tipo, check de stock cero con lógica de registro especial ("STOCK CERO"), búsqueda en tiempo real con botón de limpieza y modernización de colores en login. |
 | **0.5.1** | 2026-05-07 | Corrección de Autenticación: Se actualizó el interceptor de Angular para asegurar que el token JWT (Bearer) se envíe en todas las peticiones a las tablas de la API (StockInventario, StockAprobado, etc.), corrigiendo el error de "credenciales no provistas". |
