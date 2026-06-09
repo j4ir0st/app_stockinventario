@@ -8,6 +8,7 @@ import { ThemeService } from '../../services/theme.service';
 import { RefreshService } from '../../services/refresh.service';
 import { SearchService } from '../../services/search.service';
 import { AuthService } from '../../services/auth.service';
+import { FilterDataService } from '../../services/filter-data.service';
 
 @Component({
   selector: 'app-inventory',
@@ -22,6 +23,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
   private refreshService = inject(RefreshService);
   public searchService = inject(SearchService);
   public authService = inject(AuthService);
+  private filterDataService = inject(FilterDataService);
 
   private suscripcionRefresco?: Subscription;
   private eRef = inject(ElementRef);
@@ -85,7 +87,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.searchService.actualizarFecha();
       // Solo cargamos si los filtros ya están vacíos (porque el effect no se disparará)
       const f = this.searchService.filtros();
-      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__consolidado && !f.prod_id__grupo_id__nombre && !f.prod_id__linea_id__nombre;
+      const isEmpty = !f.buscar && !f.tipo_producto && !f.prod_id__prov_id__consolidado && !f.prod_id__grupo_id__nombre && !f.prod_id__linea_id__nombre && !f.tipo_almacenaje__contains;
 
       if (isEmpty) {
         this.cargarStock();
@@ -134,6 +136,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.nextUrl.set(data.next || null);
       this.prevUrl.set(data.previous || null);
       this.totalCount.set(data.count || rawResults.length);
+      // Actualizar lista de depósitos para el filtro del sidebar
+      this.filterDataService.actualizarDepositos(rawResults);
     }
 
     // Lógica de filtrado y transformación por "Ver Cero"
@@ -153,7 +157,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
     const resultsProcesados: any[] = [];
 
     gruposMapa.forEach((items, key) => {
-      const totalStockGrupo = items.reduce((sum, i) => sum + (i.stock || 0), 0);
+      const totalStockGrupo = items.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
 
       if (totalStockGrupo > 0) {
         // Si hay stock, filtramos los items individuales si verCero es false
@@ -196,7 +200,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       } else if (key === lastGroupKey) {
         currentGroup.push(item);
       } else {
-        const total = currentGroup.reduce((sum, i) => sum + (i.stock || 0), 0);
+        const total = currentGroup.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
         agrupados.push({
           items: currentGroup,
           key: lastGroupKey,
@@ -210,7 +214,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       }
 
       if (index === resultsProcesados.length - 1) {
-        const total = currentGroup.reduce((sum, i) => sum + (i.stock || 0), 0);
+        const total = currentGroup.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
         agrupados.push({
           items: currentGroup,
           key: lastGroupKey,
@@ -365,7 +369,11 @@ export class InventoryComponent implements OnInit, OnDestroy {
         }
 
         currentGroupKey = key;
-        currentGroupSum += (item.stock || 0);
+        if (item.stock > 0) {
+          currentGroupSum += item.stock
+        } else {
+          currentGroupSum += 0
+        }
 
         // Fila del item individual
         excelRows.push({

@@ -102,13 +102,13 @@
 }
 
 .combobox-wrapper:focus-within {
-    border-color: #ff65c3;
+    border-color: var(--primary-pink);
     background: white;
 }
 
 :host-context([data-theme='dark']) .combobox-wrapper:focus-within {
     background: #1e293b;
-    border-color: #ff65c3;
+    border-color: var(--primary-pink);
 }
 
 .combobox-wrapper input {
@@ -152,7 +152,7 @@
     font-size: 1.1rem;
     pointer-events: auto;
     cursor: pointer;
-    color: #ff65c3;
+    color: var(--primary-pink);
     z-index: 5;
 }
 
@@ -194,7 +194,7 @@
     border: none;
     padding: 8px;
     border-radius: 20px;
-    color: #ff65c3;
+    color: var(--primary-pink);
     font-weight: 700;
     font-size: 0.9rem;
     cursor: pointer;

@@ -89,6 +89,32 @@
       </div>
     </div>
 
+    <!-- Filtro Depósito -->
+    <div class="filter-group">
+      <div class="combobox-wrapper">
+        <i class="fas fa-search filter-icon"></i>
+        <input type="text" placeholder="Depósito" [ngModel]="searchService.filtros().tipo_almacenaje__contains"
+          (ngModelChange)="onFilterChange('tipo_almacenaje__contains', $event)"
+          (blur)="setTimeout(() => showDeposits.set(false), 200)">
+
+        @if (searchService.filtros().tipo_almacenaje__contains) {
+        <i class="fas fa-times-circle clear-icon" (click)="selectOption('tipo_almacenaje__contains', '')"></i>
+        }
+
+        <!-- Dropdown personalizado -->
+        @if (showDeposits()) {
+        <div class="custom-dropdown">
+          @for (d of getFilteredList(filterDataService.depositos(),
+          searchService.filtros().tipo_almacenaje__contains); track d) {
+          <div class="dropdown-item" (click)="selectOption('tipo_almacenaje__contains', d)">
+            {{ d }}
+          </div>
+          }
+        </div>
+        }
+      </div>
+    </div>
+
     <div class="sidebar-spacer-small"></div>
 
     <div class="tipo-section">

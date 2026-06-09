@@ -28,6 +28,7 @@ export class SidebarComponent {
   showProvs = signal(false);
   showGroups = signal(false);
   showLines = signal(false);
+  showDeposits = signal(false);
 
   /**
    * Actualiza un filtro en el servicio global y abre el dropdown.
@@ -39,6 +40,7 @@ export class SidebarComponent {
     if (key.includes('prov')) this.showProvs.set(value.length > 0);
     if (key.includes('grupo')) this.showGroups.set(value.length > 0);
     if (key.includes('linea')) this.showLines.set(value.length > 0);
+    if (key.includes('almacenaje')) this.showDeposits.set(value.length > 0);
   }
 
   /**
@@ -49,6 +51,7 @@ export class SidebarComponent {
     this.showProvs.set(false);
     this.showGroups.set(false);
     this.showLines.set(false);
+    this.showDeposits.set(false);
   }
 
   /**

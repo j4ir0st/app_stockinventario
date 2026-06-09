@@ -4,6 +4,7 @@ export interface FiltrosBusqueda {
   prod_id__prov_id__consolidado: string;
   prod_id__grupo_id__nombre: string;
   prod_id__linea_id__nombre: string;
+  tipo_almacenaje__contains: string;
   buscar: string;
   tipo_producto: string; // Para MER e IM-CIN (CIN,IM)
 }
@@ -17,6 +18,7 @@ export class SearchService {
     prod_id__prov_id__consolidado: '',
     prod_id__grupo_id__nombre: '',
     prod_id__linea_id__nombre: '',
+    tipo_almacenaje__contains: '',
     buscar: '',
     tipo_producto: 'MER,ME2'
   });
@@ -71,6 +73,7 @@ export class SearchService {
       prod_id__prov_id__consolidado: '',
       prod_id__grupo_id__nombre: '',
       prod_id__linea_id__nombre: '',
+      tipo_almacenaje__contains: '',
       buscar: '',
       tipo_producto: 'MER,ME2'
     });

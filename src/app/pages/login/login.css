@@ -17,7 +17,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(255, 101, 195, 0.4) 20%, rgba(217, 217, 217, 0.4) 80%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary-pink), transparent 60%) 20%, color-mix(in srgb, var(--header-grey), transparent 60%) 80%);
     z-index: 1;
 }
 
@@ -117,7 +117,7 @@
 .input-wrapper input:focus {
     outline: none;
     border-color: var(--pink-soft);
-    box-shadow: 0 0 0 4px rgba(255, 101, 195, 0.2);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary-pink), transparent 80%);
 }
 
 .error-message {
@@ -142,7 +142,7 @@
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 10px 20px rgba(255, 101, 195, 0.3);
+    box-shadow: 0 10px 20px color-mix(in srgb, var(--primary-pink), transparent 70%);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -151,7 +151,7 @@
 .login-btn:hover {
     background: var(--pink-dark);
     transform: translateY(-2px);
-    box-shadow: 0 12px 24px rgba(255, 101, 195, 0.4);
+    box-shadow: 0 12px 24px color-mix(in srgb, var(--primary-pink), transparent 60%);
 }
 
 .login-btn:active {

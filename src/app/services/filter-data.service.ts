@@ -16,6 +16,7 @@ export class FilterDataService {
   public proveedores = signal<string[]>([]);
   public grupos = signal<string[]>([]);
   public lineas = signal<string[]>([]);
+  public depositos = signal<string[]>([]);
   public loading = signal(false);
 
   private readonly CACHE_KEY = 'SURGICORP_FILTERS_CACHE';
@@ -37,6 +38,7 @@ export class FilterDataService {
       this.proveedores.set([]);
       this.grupos.set([]);
       this.lineas.set([]);
+      this.depositos.set([]);
     }
 
     if (!forzar && this.cargarDesdeCache()) {
@@ -60,6 +62,7 @@ export class FilterDataService {
         this.proveedores.set(data.proveedores || []);
         this.grupos.set(data.grupos || []);
         this.lineas.set(data.lineas || []);
+        // Los depósitos se actualizan dinámicamente desde los datos de stock
         console.log('Filtros cargados desde caché local.');
         return true;
       }
@@ -168,6 +171,23 @@ export class FilterDataService {
     }
 
     return allNames;
+  }
+
+  /**
+   * Actualiza la lista de depósitos con los valores únicos de almacenaje
+   * extraídos desde los items de stock ya cargados (sin consultas adicionales al servidor).
+   */
+  public actualizarDepositos(items: any[]): void {
+    const unicos = [...new Set(
+      items
+        .map(i => i.almacenaje as string)
+        .filter(a => a && a.trim() !== '' && a !== 'STOCK CERO')
+    )].sort();
+
+    // Solo actualizar si hay valores nuevos para evitar renders innecesarios
+    if (unicos.length > 0) {
+      this.depositos.set(unicos);
+    }
   }
 
 }

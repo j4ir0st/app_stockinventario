@@ -36,6 +36,7 @@ export class HeaderComponent {
   }
   
   isProfileOpen = signal(false);
+  isColorPickerOpen = signal(false);
 
   toggleSidebar() {
     this.sidebarService.toggle();
@@ -43,13 +44,35 @@ export class HeaderComponent {
 
   toggleProfile() {
     this.isProfileOpen.update((v: boolean) => !v);
+    if (this.isProfileOpen()) this.isColorPickerOpen.set(false);
+  }
+
+  toggleColorPicker() {
+    this.isColorPickerOpen.update((v: boolean) => !v);
+    if (this.isColorPickerOpen()) this.isProfileOpen.set(false);
   }
 
   @HostListener('document:click', ['$event'])
   clickout(event: any) {
     if (!this.eRef.nativeElement.contains(event.target)) {
       this.isProfileOpen.set(false);
+      this.isColorPickerOpen.set(false);
     }
+  }
+
+  onPrimaryColorChange(event: Event) {
+    const color = (event.target as HTMLInputElement).value;
+    this.themeService.setColors(color, this.themeService.currentSecondaryColor());
+  }
+
+  onSecondaryColorChange(event: Event) {
+    const color = (event.target as HTMLInputElement).value;
+    this.themeService.setColors(this.themeService.currentPrimaryColor(), color);
+  }
+
+  resetColors() {
+    this.themeService.setColors('#ff65c3', '#d9d9d9');
+    this.isColorPickerOpen.set(false);
   }
 
   logout() {

@@ -5,52 +5,54 @@
     /* Paleta Principal solicitada */
     --primary-pink: #ff65c3;
     --header-grey: #d9d9d9;
-    
-    /* Variaciones de Rosa */
-    --pink-soft: #ff85cf;
-    --pink-dark: #d6499e;
-    --pink-vibrant: #ff0095;
-    
+
+    /* Variaciones Dinámicas basadas en el Color Primario Seleccionado */
+    --pink-soft: color-mix(in srgb, var(--primary-pink), white 30%);
+    --pink-dark: color-mix(in srgb, var(--primary-pink), black 20%);
+    --pink-vibrant: color-mix(in srgb, var(--primary-pink), black 10%);
+
     /* Variaciones de Gris/Neutros */
     --grey-light: #f5f5f5;
     --grey-medium: #b0b0b0;
     --grey-dark: #4a4a4a;
-    
+
     /* Variables de Componentes (Modo Claro) */
     --sidebar-bg: var(--primary-pink);
     --sidebar-text: #ffffff;
-    --header-bg: var(--header-grey);
+    --header-bg: color-mix(in srgb, var(--header-grey), white 82%);
     --header-text: #333333;
-    
+
     --bg-app: #f9f9f9;
     --white: #ffffff;
     --text-main: #333333;
     --text-muted: #777777;
     --border-color: #e0e0e0;
-    
+
     /* Estados */
-    --success: #28a745; /* Solo para Excel */
+    --success: #28a745;
+    /* Solo para Excel */
     --warning: #ffb100;
     --danger: #ff4d4d;
-    
+
     /* Sombras y Bordes */
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 8px rgba(0,0,0,0.1);
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
     --radius-md: 8px;
     --radius-lg: 12px;
 }
 
 /* Recombinación para Modo Oscuro */
 [data-theme='dark'] {
-    --sidebar-bg: #8a2d64; /* Rosa oscuro profundo */
-    --header-bg: #2a2a2a; /* Gris antracita */
+    --sidebar-bg: color-mix(in srgb, var(--primary-pink), black 50%);
+    --sidebar-text: #ffffff;
+    --header-bg: color-mix(in srgb, var(--header-grey), black 45%);
     --header-text: #eeeeee;
-    
-    --bg-app: #121212;
-    --white: #1e1e1e;
-    --text-main: #e0e0e0;
-    --text-muted: #999999;
-    --border-color: #333333;
+
+    --bg-app: #0f172a;
+    --white: #1e293b;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
 }
 
 
@@ -59,6 +61,11 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+::selection {
+    background-color: color-mix(in srgb, var(--primary-pink), transparent 70%);
+    color: var(--text-main);
 }
 
 body {

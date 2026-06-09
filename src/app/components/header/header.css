@@ -45,7 +45,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: rgba(255, 101, 195, 0.1);
+    background: color-mix(in srgb, var(--primary-pink), transparent 90%);
     color: var(--primary-pink);
     transition: all 0.2s;
     font-size: 1.2rem;
@@ -107,11 +107,21 @@
 .stock-text {
     color: var(--primary-pink);
     transition: color 0.3s ease;
+    text-shadow: 
+        -1px -1px 0 rgba(0,0,0,0.2),  
+         1px -1px 0 rgba(0,0,0,0.2),
+        -1px  1px 0 rgba(0,0,0,0.2),
+         1px  1px 0 rgba(0,0,0,0.2);
 }
 
 .inventario-text {
-    color: var(--header-text);
+    color: var(--header-grey);
     transition: color 0.3s ease;
+    text-shadow: 
+        -1px -1px 0 rgba(0,0,0,0.2),  
+         1px -1px 0 rgba(0,0,0,0.2),
+        -1px  1px 0 rgba(0,0,0,0.2),
+         1px  1px 0 rgba(0,0,0,0.2);
 }
 
 .main-header.dark-mode .stock-text,
@@ -169,6 +179,136 @@
     gap: 1rem;
 }
 
+/* Selector de Colores */
+.color-picker-container {
+    position: relative;
+    margin-right: 0.5rem;
+}
+
+.color-toggle {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--primary-pink), transparent 85%);
+    color: var(--primary-pink);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 1.1rem;
+}
+
+.main-header.dark-mode .color-toggle {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.color-toggle:hover {
+    background: color-mix(in srgb, var(--primary-pink), transparent 70%);
+    transform: scale(1.1);
+}
+
+.main-header.dark-mode .color-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.color-menu {
+    position: absolute;
+    top: calc(100% + 15px);
+    right: 0;
+    width: 210px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    padding: 1.2rem;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: slideIn 0.2s ease-out;
+}
+
+.main-header.dark-mode .color-menu {
+    background: rgba(30, 41, 59, 0.95);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-close-picker {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border-radius: 4px;
+}
+
+.btn-close-picker:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--danger);
+}
+
+.color-option {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.color-option label {
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.color-option input[type="color"] {
+    width: 100%;
+    height: 38px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: none;
+}
+
+.color-option input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 0;
+}
+
+.color-option input[type="color"]::-webkit-color-swatch {
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.btn-reset-colors {
+    margin-top: 0.5rem;
+    padding: 0.7rem;
+    border: 1px solid var(--border-color);
+    background: var(--white);
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-reset-colors:hover {
+    background: var(--bg-app);
+    border-color: var(--primary-pink);
+    color: var(--primary-pink);
+}
+
 .user-profile-container {
     position: relative;
 }
@@ -181,7 +321,7 @@
     border-radius: 32px;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: rgba(255, 101, 195, 0.08);
+    background: color-mix(in srgb, var(--primary-pink), transparent 92%);
 }
 
 .main-header.dark-mode .user-profile {
@@ -189,7 +329,7 @@
 }
 
 .user-profile:hover {
-    background: rgba(255, 101, 195, 0.15);
+    background: color-mix(in srgb, var(--primary-pink), transparent 85%);
 }
 
 .main-header.dark-mode .user-profile:hover {

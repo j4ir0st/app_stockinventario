@@ -29,7 +29,7 @@
 }
 
 .summary-row {
-    background-color: rgba(255, 101, 195, 0.05) !important;
+    background-color: color-mix(in srgb, var(--primary-pink), transparent 95%) !important;
     border-bottom: 2px solid var(--primary-pink);
 }
 
@@ -167,7 +167,7 @@
 .search-box input:focus {
     outline: none;
     border-color: var(--primary-pink);
-    box-shadow: 0 0 0 3px rgba(255, 101, 195, 0.1);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-pink), transparent 90%);
 }
 
 .btn-clear-search {
@@ -355,7 +355,7 @@
 }
 
 .stock-table tbody tr:hover {
-    background-color: rgba(255, 101, 195, 0.08);
+    background-color: color-mix(in srgb, var(--primary-pink), transparent 92%);
 }
 
 .prod-type {
