@@ -1,5 +1,5 @@
-import { Component, signal, inject, OnInit, OnDestroy, effect, ElementRef, untracked } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, signal, computed, inject, OnInit, OnDestroy, effect, ElementRef, untracked } from '@angular/core';
+import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import * as XLSX from 'xlsx';
 import { firstValueFrom, Subscription } from 'rxjs';
@@ -12,10 +12,9 @@ import { FilterDataService } from '../../services/filter-data.service';
 
 @Component({
   selector: 'app-inventory',
-  standalone: true,
-  imports: [CommonModule, FormsModule],
   templateUrl: './inventory.html',
-  styleUrl: './inventory.css'
+  styleUrl: './inventory.css',
+  imports: [CommonModule, FormsModule, DatePipe]
 })
 export class InventoryComponent implements OnInit, OnDestroy {
   private apiService = inject(ApiService);
@@ -43,6 +42,10 @@ export class InventoryComponent implements OnInit, OnDestroy {
   prevUrl = signal<string | null>(null);
   totalCount = signal(0);
   paginaActual = signal(1);
+  // Tamaño de página: 60 por defecto (DRF default); se actualiza si la URL contiene top=N
+  tamanioPagina = signal(60);
+  // Total de páginas calculado en memoria a partir del count y el tamaño de página
+  totalPaginas = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.tamanioPagina())));
 
   // Estados de exportación independientes
   loadingExportGeneral = signal(false);
@@ -52,6 +55,49 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
   // Ver registros con stock cero
   verCero = signal(false);
+
+  // --- Estado de la vista detalle ---
+  vistaDetalle = signal(false);
+  productoSeleccionado = signal<any>(null);
+  itemsDetalle = signal<any[]>([]);       // Registros agregados con cantidad > 0
+  itemsDetalleCeros = signal<any[]>([]);  // Registros agregados que quedaron en cero
+  itemsDetalleRaw = signal<any[]>([]);    // Registros originales del kardex sin procesar
+  loadingDetalle = signal(false);
+  errorDetalle = signal<string | null>(null);
+
+  // Modos de visualización del detalle
+  mostrarKardexOriginal = signal(false);  // Muestra el kardex sin agregar
+  mostrarCeros = signal(false);           // Muestra también los registros que quedaron en cero
+  ordenFechaAscendente = signal(false);   // Orden de fecha: false = descendente (por defecto)
+  filtroSerie = signal('');               // Filtro de texto por número de serie
+  filtroDeposito = signal('');            // Filtro de texto por nombre de depósito
+
+  // Items visibles según modo activo, con filtrado y ordenamiento en memoria
+  itemsVisibles = computed(() => {
+    let items: any[];
+    if (this.mostrarKardexOriginal()) items = this.itemsDetalleRaw();
+    else if (this.mostrarCeros()) items = [...this.itemsDetalle(), ...this.itemsDetalleCeros()];
+    else items = this.itemsDetalle();
+
+    // Filtrar por número de serie (búsqueda parcial sin distinción de mayúsculas)
+    const filtroPorSerie = this.filtroSerie().trim().toLowerCase();
+    if (filtroPorSerie) {
+      items = items.filter(reg => (reg.numero_serie || '').toLowerCase().includes(filtroPorSerie));
+    }
+
+    // Filtrar por nombre de depósito (búsqueda parcial sin distinción de mayúsculas)
+    const filtroPorDeposito = this.filtroDeposito().trim().toLowerCase();
+    if (filtroPorDeposito) {
+      items = items.filter(reg => (reg.nombre_deposito || '').toLowerCase().includes(filtroPorDeposito));
+    }
+
+    // Ordenar en memoria sin hacer consultas adicionales al servidor
+    return [...items].sort((a, b) => {
+      const fechaA = new Date(a.fecha_movimiento || 0).getTime();
+      const fechaB = new Date(b.fecha_movimiento || 0).getTime();
+      return this.ordenFechaAscendente() ? fechaA - fechaB : fechaB - fechaA;
+    });
+  });
 
   constructor() {
     // Reaccionar a cambios en los filtros del sidebar
@@ -136,6 +182,12 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.nextUrl.set(data.next || null);
       this.prevUrl.set(data.previous || null);
       this.totalCount.set(data.count || rawResults.length);
+
+      // Actualizar tamaño de página extrayendo el parámetro top de la URL de paginación
+      const urlRef = data.next || data.previous || '';
+      const topMatch = urlRef.match(/[?&]top=(\d+)/);
+      this.tamanioPagina.set(topMatch ? parseInt(topMatch[1], 10) : 60);
+
       // Actualizar lista de depósitos para el filtro del sidebar
       this.filterDataService.actualizarDepositos(rawResults);
     }
@@ -419,7 +471,6 @@ export class InventoryComponent implements OnInit, OnDestroy {
   buscar(): void {
     if (this.searchService.filtros().buscar === this.searchTerm()) return;
     this.searchService.patchFiltros('buscar', this.searchTerm());
-    // this.buscar();
   }
 
   limpiarBusqueda(): void {
@@ -429,6 +480,183 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
   toggleVerCero(): void {
     this.verCero.update(v => !v);
+  }
+
+  /**
+   * Abre la vista detalle para un item, consultando Stock_ERP con todos los filtros del almacenaje.
+   * Parsea el campo almacenaje (formato: "empresa | tipo_almacenaje | tipo_almacen"),
+   * busca el cod_empresa en SI_Empresa y carga el kardex completo en paralelo.
+   * @param item Registro de StockInventario seleccionado.
+   */
+  async verDetalle(item: any): Promise<void> {
+    if (item.esEspecialCero) return;
+
+    const codigo = item.prod_id?.codigo;
+    const tipo = item.prod_id?.tipo;
+
+    // Parsear el campo almacenaje: [empresa] | [tipo_almacenaje] | [tipo_almacen]
+    const partes = (item.almacenaje || '').split(' | ');
+    const nombreEmpresa   = partes[0]?.trim() || '';
+    const tipoAlmacenaje  = partes[1]?.trim() || '';
+    const tipoAlmacen     = partes[2]?.trim() || '';
+
+    if (!codigo) return;
+
+    // Inicializar estado del detalle
+    this.productoSeleccionado.set(item);
+    this.itemsDetalle.set([]);
+    this.itemsDetalleCeros.set([]);
+    this.itemsDetalleRaw.set([]);
+    this.mostrarKardexOriginal.set(false);
+    this.mostrarCeros.set(false);
+    this.ordenFechaAscendente.set(false);
+    this.filtroSerie.set('');
+    this.filtroDeposito.set('');
+    this.errorDetalle.set(null);
+    this.loadingDetalle.set(true);
+    this.vistaDetalle.set(true);
+
+    try {
+      const top = 1000;
+
+      // Obtener cod_empresa desde la caché (sin consultas adicionales al servidor)
+      const codEmpresa = this.filterDataService.buscarCodEmpresa(nombreEmpresa);
+      if (!codEmpresa && nombreEmpresa) {
+        console.warn('cod_empresa no encontrado en caché para empresa:', nombreEmpresa, '— consultando sin filtro de empresa.');
+      }
+
+      // Primera consulta a Stock_ERP con todos los filtros
+      const filtros = {
+        tipo_producto:   tipo           || undefined,
+        codigo_producto: codigo         || undefined,
+        cod_empresa:     codEmpresa     || undefined,
+        tipo_almacenaje: tipoAlmacenaje || undefined,
+        tipo_almacen:    tipoAlmacen    || undefined
+      };
+      console.log('Consultando Stock_ERP con filtros:', filtros);
+
+      const primeraRespuesta: any = await firstValueFrom(this.apiService.getStockERP(filtros, top));
+      if (!primeraRespuesta) throw new Error('Sin respuesta del servidor');
+
+      let todosLosResultados = [...(primeraRespuesta.results || [])];
+
+      // Cargar páginas adicionales en paralelo si las hay
+      if (primeraRespuesta.next) {
+        const totalRegistros = primeraRespuesta.count || 0;
+        const totalPaginas = Math.ceil(totalRegistros / top);
+        console.log(`Stock_ERP: ${totalRegistros} registros en ${totalPaginas} páginas. Cargando en paralelo...`);
+
+        const promesas: Promise<any>[] = [];
+        for (let pagina = 2; pagina <= totalPaginas; pagina++) {
+          let urlPagina = `Stock_ERP/?page=${pagina}&top=${top}&codigo_producto=${encodeURIComponent(codigo)}`;
+          if (tipo)            urlPagina += `&tipo_producto=${encodeURIComponent(tipo)}`;
+          if (tipoAlmacenaje)  urlPagina += `&tipo_almacenaje=${encodeURIComponent(tipoAlmacenaje)}`;
+          if (tipoAlmacen)     urlPagina += `&tipo_almacen=${encodeURIComponent(tipoAlmacen)}`;
+          if (codEmpresa)      urlPagina += `&cod_empresa=${encodeURIComponent(codEmpresa)}`;
+          promesas.push(firstValueFrom(this.apiService.getStockERPPagina(urlPagina)));
+        }
+
+        const respuestasPaginadas = await Promise.all(promesas);
+        respuestasPaginadas.forEach((resp: any) => {
+          todosLosResultados = [...todosLosResultados, ...(resp?.results || [])];
+        });
+      }
+
+      console.log(`Stock_ERP: ${todosLosResultados.length} registros totales cargados.`);
+
+      // Guardar el kardex original con cantidades redondeadas
+      this.itemsDetalleRaw.set(
+        todosLosResultados.map((reg: any) => ({ ...reg, cantidad: Math.round(reg.cantidad || 0) }))
+      );
+
+      // Agregar registros por numero_serie + deposito: igual que en app_stockaprobados
+      const agregado = new Map<string, any>();
+
+      todosLosResultados.forEach((reg: any) => {
+        const clave = reg.numero_serie
+          ? `${reg.numero_serie}|${reg.nombre_deposito || ''}`
+          : `__sin_serie_${Math.random()}`;
+        const cantidadActual = Math.round(reg.cantidad || 0);
+
+        if (agregado.has(clave)) {
+          const existente = agregado.get(clave);
+          existente.cantidad += cantidadActual;
+          // Conservar los datos del registro con la fecha más reciente
+          const fechaExistente = new Date(existente.fecha_movimiento || 0);
+          const fechaNueva = new Date(reg.fecha_movimiento || 0);
+          if (fechaNueva > fechaExistente) {
+            agregado.set(clave, { ...reg, cantidad: existente.cantidad });
+          }
+        } else {
+          agregado.set(clave, { ...reg, cantidad: cantidadActual });
+        }
+      });
+
+      // Separar registros con cantidad positiva de los que quedaron en cero o negativo
+      const todosAgregados = Array.from(agregado.values());
+      this.itemsDetalle.set(todosAgregados.filter(reg => reg.cantidad > 0));
+      this.itemsDetalleCeros.set(todosAgregados.filter(reg => reg.cantidad <= 0));
+
+      this.loadingDetalle.set(false);
+
+    } catch (err) {
+      console.error('Error al cargar detalle de stock:', err);
+      this.errorDetalle.set('No se pudo cargar el detalle. Intente nuevamente.');
+      this.loadingDetalle.set(false);
+    }
+  }
+
+  /**
+   * Regresa a la vista principal de la tabla de inventario.
+   */
+  regresarATabla(): void {
+    this.vistaDetalle.set(false);
+    this.productoSeleccionado.set(null);
+    this.itemsDetalle.set([]);
+    this.itemsDetalleCeros.set([]);
+    this.itemsDetalleRaw.set([]);
+    this.mostrarKardexOriginal.set(false);
+    this.mostrarCeros.set(false);
+    this.ordenFechaAscendente.set(false);
+    this.filtroSerie.set('');
+    this.filtroDeposito.set('');
+    this.errorDetalle.set(null);
+  }
+
+  /**
+   * Retorna la clase CSS del badge según el tipo de almacenaje.
+   * Permite colorear semánticamente cada estado en la vista detalle.
+   */
+  claseAlmacenaje(tipo: string): string {
+    const mapa: Record<string, string> = {
+      'STOCK DISPONIBLE':                        'alm-disponible',
+      'MUESTRA':                                 'alm-muestra',
+      'PRODUCTOS EN ACONDICIONADO':              'alm-acondicionado',
+      'BAJA':                                    'alm-baja',
+      'DEVOLUCION EN PROCESO':                   'alm-devolucion',
+      'INKJET':                                  'alm-inkjet',
+      'IMPORTACION EN PROCESO DE APROBACION':    'alm-importacion',
+      'PRESTAMO':                                'alm-prestamo',
+      'COMPRA LOCAL EN PROCESO DE REVISION':     'alm-compra-local',
+      'PROVISIONAL':                             'alm-provisional',
+      'PRODUCTO REESTERILIZADO':                 'alm-reesterilizado',
+      'CONSUMO INTERNO':                         'alm-consumo',
+      'FUERA DEL STOCK':                         'alm-fuera-stock',
+      'PRODUCTOS OBSERVADOS POR CALIDAD':        'alm-observados',
+      'PRODUCTOS POR REGULARIZAR ATENCIONES':    'alm-regularizar-atenciones',
+      'VTA. SUJET. A CONF(MER)/BIENES DE USO':   'alm-vta-sujeta',
+      'RESERVADO PARA OC':                       'alm-reservado',
+      'CONSIGNACION':                            'alm-consignacion',
+      'PRODUCTOS POR REGULARIZAR FACTURACION':   'alm-regularizar-facturacion',
+    };
+    return mapa[(tipo || '').toUpperCase().trim()] || 'alm-default';
+  }
+
+  /**
+   * Alterna el orden de fecha entre ascendente y descendente en memoria.
+   */
+  toggleOrdenFecha(): void {
+    this.ordenFechaAscendente.set(!this.ordenFechaAscendente());
   }
 
 }

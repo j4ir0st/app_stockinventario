@@ -1,5 +1,9 @@
 <div class="inventory-container" [class.dark-mode]="themeService.currentTheme() === 'dark'">
   <div class="inventory-wrapper">
+
+    <!-- Vista Principal: Buscador + Tabla -->
+    @if (!vistaDetalle()) {
+
     <!-- Header Compacto: Buscador + Paginación -->
     <div class="search-header">
       <div class="search-box">
@@ -80,7 +84,7 @@
         </button>
         <span class="page-info">
           <strong>{{ totalCount() }}</strong> regs. |
-          Pág. <strong>{{ paginaActual() }}</strong>
+          Pág. <strong>{{ paginaActual() }}</strong> de <strong>{{ totalPaginas() }}</strong>
         </span>
         <button class="btn-page" (click)="nextPage()" [disabled]="!nextUrl() || loading()">
           <i class="fas fa-chevron-right"></i>
@@ -100,7 +104,7 @@
             <th>CÓDIGO</th>
             <th>DESCRIPCIÓN</th>
             <th>EMPRESA Y DEPOSITO</th>
-            <th>CANTIDAD</th>
+            <th title="Haz clic en la cantidad para ver el detalle del kardex en Stock_ERP" style="cursor: help;">CANTIDAD</th>
           </tr>
         </thead>
         <tbody>
@@ -130,9 +134,22 @@
               <div class="table-text" [class.text-zero]="item.esEspecialCero">{{ item.almacenaje }}</div>
             </td>
             <td>
+              <!-- Cantidad clicable si stock > 0 y no es el registro especial de cero -->
+              @if (!item.esEspecialCero && item.stock > 0) {
+              <button class="btn-cantidad" (click)="verDetalle(item)" title="Ver detalle del kardex (Stock_ERP)">
+                <span class="badge"
+                  [class.badge-warning]="item.stock >= 1 && item.stock <= 4"
+                  [class.badge-success]="item.stock >= 5">
+                  {{ item.stock }}
+                </span>
+              </button>
+              } @else {
               <span class="badge" [class.badge-danger]="item.stock <= 0"
-                [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
-                {{ item.stock < 0 ? 0 : item.stock }} </span>
+                [class.badge-warning]="item.stock >= 1 && item.stock <= 4"
+                [class.badge-success]="item.stock >= 5">
+                {{ item.stock < 0 ? 0 : item.stock }}
+              </span>
+              }
             </td>
           </tr>
           }
@@ -153,5 +170,178 @@
         </tbody>
       </table>
     </div>
+
+    }
+
+    <!-- Vista Detalle Stock_ERP -->
+    @if (vistaDetalle()) {
+    <div class="detalle-csg-container">
+
+      <!-- Encabezado del detalle -->
+      <div class="detalle-header">
+        <button class="btn-regresar" (click)="regresarATabla()">
+          <i class="fas fa-arrow-left"></i>
+          Regresar a la tabla
+        </button>
+
+        <div class="detalle-producto-info">
+          <div class="detalle-icono">
+            {{ productoSeleccionado()?.stock < 0 ? 0 : productoSeleccionado()?.stock }}
+          </div>
+          <div class="detalle-producto-texto">
+            <h2 class="detalle-codigo">{{ productoSeleccionado()?.prod_id?.codigo }}</h2>
+            <p class="detalle-descripcion">{{ productoSeleccionado()?.prod_id?.descripcion }}</p>
+          </div>
+        </div>
+
+        <!-- Información del almacenaje seleccionado -->
+        <div class="detalle-almacenaje-info">
+          <span class="badge-almacenaje" [ngClass]="claseAlmacenaje(productoSeleccionado()?.almacenaje?.split(' | ')[1])">{{ productoSeleccionado()?.almacenaje }}</span>
+        </div>
+      </div>
+
+      <!-- Título de la sección y controles -->
+      <div class="detalle-titulo-seccion">
+        <i class="fas fa-boxes"></i>
+        <h3>Detalle de Almacenaje · Stock_ERP</h3>
+        @if (!loadingDetalle()) {
+        <!-- Filtros de búsqueda en detalle (serie y depósito) -->
+        <div class="filtros-detalle-grupo">
+          <!-- Filtro por número de serie -->
+          <div class="filtro-detalle-wrapper">
+            <i class="fas fa-barcode filtro-detalle-icono"></i>
+            <input
+              type="text"
+              class="filtro-detalle-input"
+              [ngModel]="filtroSerie()"
+              (ngModelChange)="filtroSerie.set($event)"
+              placeholder="Filtrar serie..."
+              title="Filtrar registros por número de serie">
+            @if (filtroSerie()) {
+            <button class="filtro-detalle-clear" (click)="filtroSerie.set('')" title="Limpiar filtro">
+              <i class="fas fa-times"></i>
+            </button>
+            }
+          </div>
+          <!-- Filtro por nombre de depósito -->
+          <div class="filtro-detalle-wrapper">
+            <i class="fas fa-map-marker-alt filtro-detalle-icono"></i>
+            <input
+              type="text"
+              class="filtro-detalle-input"
+              [ngModel]="filtroDeposito()"
+              (ngModelChange)="filtroDeposito.set($event)"
+              placeholder="Filtrar depósito..."
+              title="Filtrar registros por nombre de depósito">
+            @if (filtroDeposito()) {
+            <button class="filtro-detalle-clear" (click)="filtroDeposito.set('')" title="Limpiar filtro">
+              <i class="fas fa-times"></i>
+            </button>
+            }
+          </div>
+        </div>
+        <!-- Checkbox para ver los registros que quedaron en cero -->
+        <label class="check-ver-ceros" [class.disabled]="mostrarKardexOriginal()"
+          title="Mostrar registros que quedaron en cero tras la agrupación">
+          <input type="checkbox" [checked]="mostrarCeros()" (change)="mostrarCeros.set(!mostrarCeros())"
+            [disabled]="mostrarKardexOriginal()">
+          <span>Ver ceros</span>
+        </label>
+        <!-- Botón que alterna entre vista agrupada y kardex original -->
+        <button class="btn-toggle-kardex" (click)="mostrarKardexOriginal.set(!mostrarKardexOriginal())"
+          [class.activo]="mostrarKardexOriginal()"
+          [title]="mostrarKardexOriginal() ? 'Ver resumen agrupado' : 'Ver kardex original sin agrupar'">
+          <i class="fas" [ngClass]="mostrarKardexOriginal() ? 'fa-layer-group' : 'fa-list'"></i>
+          {{ itemsVisibles().length }} registro(s)
+        </button>
+        }
+      </div>
+
+      <!-- Estado de carga -->
+      @if (loadingDetalle()) {
+      <div class="detalle-loading">
+        <i class="fas fa-spinner fa-spin"></i>
+        <span>Cargando detalle de almacenaje...</span>
+      </div>
+      }
+
+      <!-- Estado de error -->
+      @if (errorDetalle()) {
+      <div class="detalle-error">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span>{{ errorDetalle() }}</span>
+      </div>
+      }
+
+      <!-- Tabla de detalle -->
+      @if (!loadingDetalle() && !errorDetalle()) {
+      <div class="detalle-tabla-container">
+        <table class="stock-table detalle-tabla">
+          <thead>
+            <tr>
+              <th>Tipo Producto</th>
+              <th>Código Producto</th>
+              <th>N° Serie</th>
+              <th>Descripción</th>
+              <th>Tipo Almacenaje</th>
+              @if (mostrarKardexOriginal()) {
+              <th>Documento</th>
+              }
+              <th>
+                <span class="th-ordenable" (click)="toggleOrdenFecha()"
+                  [title]="'Al dar click se ordena de manera ascendente o descendente (' + (ordenFechaAscendente() ? 'Ascendente' : 'Descendente') + ')'">
+                  Fecha Movimiento
+                  <i class="fas fa-arrow-down icono-orden" [class.ascendente]="ordenFechaAscendente()"></i>
+                </span>
+              </th>
+              <th>Depósito</th>
+              <th>Cantidad</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (reg of itemsVisibles(); track $index) {
+            <tr [class.fila-cero]="reg.cantidad == 0">
+              <td>
+                <span class="badge-tipo">{{ reg.tipo_producto }}</span>
+              </td>
+              <td>
+                <div class="prod-code">{{ reg.codigo_producto }}</div>
+              </td>
+              <td>
+                <span class="serie-codigo">{{ reg.numero_serie || '—' }}</span>
+              </td>
+              <td>
+                <div class="prod-desc">{{ reg.descripcion }}</div>
+              </td>
+              <td>
+                <span class="badge-almacenaje" [ngClass]="claseAlmacenaje(reg.tipo_almacenaje)">{{ reg.tipo_almacenaje }}</span>
+              </td>
+              @if (mostrarKardexOriginal()) {
+              <td>{{ reg.documento || '—' }}</td>
+              }
+              <td class="fecha-celda">{{ reg.fecha_movimiento | date:'dd/MM/yyyy' }}</td>
+              <td>{{ reg.nombre_deposito }}</td>
+              <td class="cantidad-celda">
+                <span class="badge" [class.badge-success]="reg.cantidad > 0" [class.badge-danger]="reg.cantidad <= 0">
+                  {{ reg.cantidad | number:'1.0-0' }}
+                </span>
+              </td>
+            </tr>
+            }
+            @if (itemsVisibles().length === 0) {
+            <tr>
+              <td colspan="9" class="no-results">
+                No se encontraron registros de almacenaje para este producto.
+              </td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+
+    </div>
+    }
+
   </div>
 </div>

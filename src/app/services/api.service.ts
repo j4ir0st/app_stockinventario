@@ -57,38 +57,35 @@ export class ApiService {
   }
 
   /**
-   * Obtiene el stock aprobado con soporte para búsqueda unificada y límite de resultados.
-   * @param urlOrSearch URL de paginación o término de búsqueda.
-   * @param top Límite de resultados opcional (ej: 1000).
+   * Obtiene el detalle de stock ERP filtrado por múltiples parámetros.
+   * Usado para la vista detalle del StockInventario.
+   * @param filtros Objeto con los filtros: tipo_producto, codigo_producto, cod_empresa, tipo_almacenaje, tipo_almacen.
+   * @param top Límite de resultados por página (por defecto 1000).
    */
-  getStockAprobado(urlOrSearch?: string, top?: number): Observable<any> {
-    if (urlOrSearch && (urlOrSearch.includes('StockAprobado') || urlOrSearch.includes('/api/'))) {
-      let finalUrl = this.fixUrl(urlOrSearch);
+  getStockERP(filtros: { tipo_producto?: string; codigo_producto?: string; cod_empresa?: string; tipo_almacenaje?: string; tipo_almacen?: string }, top: number = 1000): Observable<any> {
+    let params = new HttpParams().set('top', top.toString());
+    if (filtros.tipo_producto)   params = params.set('tipo_producto',   filtros.tipo_producto);
+    if (filtros.codigo_producto) params = params.set('codigo_producto', filtros.codigo_producto);
+    if (filtros.cod_empresa)     params = params.set('cod_empresa',     filtros.cod_empresa);
+    if (filtros.tipo_almacenaje) params = params.set('tipo_almacenaje', filtros.tipo_almacenaje);
+    if (filtros.tipo_almacen)    params = params.set('tipo_almacen',    filtros.tipo_almacen);
+    return this.get<any>('Stock_ERP/', params);
+  }
 
-      // Si la URL es relativa (ej: "StockAprobado/?page=2"), le ponemos la base
-      if (!finalUrl.startsWith('/') && !finalUrl.startsWith('http')) {
-        finalUrl = this.baseUrl + finalUrl;
-      }
-
-      // Asegurar parámetros necesarios en URL de paginación
-      if (top && !finalUrl.includes('top=')) {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `top=${top}`;
-      }
-      if (!finalUrl.includes('format=json')) {
-        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `format=json`;
-      }
-
-      return this.get<any>(finalUrl);
+  /**
+   * Obtiene una página adicional de Stock_ERP usando la URL relativa devuelta por la API.
+   * @param urlPagina URL relativa de la siguiente página.
+   */
+  getStockERPPagina(urlPagina: string): Observable<any> {
+    let finalUrl = this.fixUrl(urlPagina);
+    if (!finalUrl.startsWith('/') && !finalUrl.startsWith('http')) {
+      const base = this.baseUrl.endsWith('/') ? this.baseUrl.slice(0, -1) : this.baseUrl;
+      finalUrl = `${base}/${finalUrl}`;
     }
-
-    let params = new HttpParams();
-    if (urlOrSearch) {
-      params = params.set('buscar', urlOrSearch);
+    if (!finalUrl.includes('format=json')) {
+      finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'format=json';
     }
-    if (top) {
-      params = params.set('top', top.toString());
-    }
-    return this.get('StockAprobado/', params);
+    return this.get<any>(finalUrl);
   }
 
   /**

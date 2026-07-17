@@ -17,9 +17,10 @@ export class FilterDataService {
   public grupos = signal<string[]>([]);
   public lineas = signal<string[]>([]);
   public depositos = signal<string[]>([]);
+  public empresas = signal<{ id: number; empresa: string }[]>([]);
   public loading = signal(false);
 
-  private readonly CACHE_KEY = 'SURGICORP_FILTERS_CACHE';
+  private readonly CACHE_KEY = 'SURGICORP_FILTERS_CACHE_V2';
   private readonly CACHE_DAYS = 7;
 
   constructor() {
@@ -39,6 +40,7 @@ export class FilterDataService {
       this.grupos.set([]);
       this.lineas.set([]);
       this.depositos.set([]);
+      this.empresas.set([]);
     }
 
     if (!forzar && this.cargarDesdeCache()) {
@@ -62,6 +64,7 @@ export class FilterDataService {
         this.proveedores.set(data.proveedores || []);
         this.grupos.set(data.grupos || []);
         this.lineas.set(data.lineas || []);
+        this.empresas.set(data.empresas || []);
         // Los depósitos se actualizan dinámicamente desde los datos de stock
         console.log('Filtros cargados desde caché local.');
         return true;
@@ -82,10 +85,11 @@ export class FilterDataService {
     console.log(`Cargando listas de filtros desde API (BypassCache: ${bypassCache})...`);
 
     try {
-      const [provs, grps, lins] = await Promise.all([
+      const [provs, grps, lins, empresasCompletas] = await Promise.all([
         this.fetchAllRecords('SI_Proveedor/', 'consolidado', bypassCache),
         this.fetchAllRecords('SI_Grupo/', 'nombre', bypassCache),
-        this.fetchAllRecords('SI_Linea/', 'nombre', bypassCache)
+        this.fetchAllRecords('SI_Linea/', 'nombre', bypassCache),
+        this.fetchEmpresasCompletas(bypassCache)
       ]);
 
       // Eliminar duplicados, valores nulos/vacíos y limpiar espacios
@@ -100,10 +104,11 @@ export class FilterDataService {
       this.proveedores.set(uniqueProvs);
       this.grupos.set(uniqueGrps);
       this.lineas.set(uniqueLins);
+      this.empresas.set(empresasCompletas);
 
       // Guardar en caché con el timestamp actual
       localStorage.setItem(this.CACHE_KEY, JSON.stringify({
-        data: { proveedores: uniqueProvs, grupos: uniqueGrps, lineas: uniqueLins },
+        data: { proveedores: uniqueProvs, grupos: uniqueGrps, lineas: uniqueLins, empresas: empresasCompletas },
         timestamp: Date.now()
       }));
 
@@ -188,6 +193,77 @@ export class FilterDataService {
     if (unicos.length > 0) {
       this.depositos.set(unicos);
     }
+  }
+
+  /**
+   * Carga todos los registros de la tabla Empresa para tener el mapeo nombre → id.
+   * Se ejecuta una única vez y se guarda en caché junto al resto de filtros.
+   * @param bypassCache Si es true, añade timestamp para evitar caché del navegador.
+   */
+  private async fetchEmpresasCompletas(bypassCache = false): Promise<{ id: number; empresa: string }[]> {
+    const resultados: { id: number; empresa: string }[] = [];
+    let nextUrl: string | null = `Empresa/?top=1000`;
+
+    if (bypassCache) {
+      nextUrl += `&_t=${Date.now()}`;
+    }
+
+    while (nextUrl) {
+      try {
+        const res: any = await firstValueFrom(this.apiService.get<any>(nextUrl));
+        if (!res) break;
+
+        const results = res.results || (Array.isArray(res) ? res : []);
+        results.forEach((item: any) => {
+          if (item.id && item.empresa) {
+            resultados.push({ id: item.id, empresa: item.empresa });
+          }
+        });
+
+        nextUrl = res.next || null;
+        if (nextUrl && bypassCache && !nextUrl.includes('_t=')) {
+          nextUrl += (nextUrl.includes('?') ? '&' : '?') + `_t=${Date.now()}`;
+        }
+      } catch (e) {
+        console.error('Error al cargar tabla Empresa:', e);
+        break;
+      }
+    }
+
+    console.log(`Tabla Empresa cargada: ${resultados.length} empresas.`);
+    return resultados;
+  }
+
+  /**
+   * Busca el cod_empresa en la caché local a partir del nombre de empresa
+   * extraído del campo almacenaje ([empresa] | [tipo_almacenaje] | [tipo_almacen]).
+   * Retorna el id como string (la API Stock_ERP acepta el formato "01", "1", etc.).
+   * @param nombre Nombre de la empresa a buscar.
+   */
+  public buscarCodEmpresa(nombre: string): string {
+    if (!nombre) return '';
+    const nombreNorm = nombre.trim().toLowerCase();
+    const lista = this.empresas();
+
+    // Coincidencia exacta primero (case-insensitive)
+    let encontrada = lista.find(e => e.empresa.trim().toLowerCase() === nombreNorm);
+
+    // Si no hay exacta, buscar si el nombre del almacenaje contiene el nombre de empresa
+    if (!encontrada) {
+      encontrada = lista.find(e => nombreNorm.includes(e.empresa.trim().toLowerCase()));
+    }
+
+    // Último intento: si el nombre de empresa contiene el término buscado
+    if (!encontrada) {
+      encontrada = lista.find(e => e.empresa.trim().toLowerCase().includes(nombreNorm));
+    }
+
+    if (!encontrada) {
+      console.warn(`No se encontró empresa en caché para: "${nombre}"`);
+      return '';
+    }
+
+    return String(encontrada.id).padStart(2, '0');
   }
 
 }
