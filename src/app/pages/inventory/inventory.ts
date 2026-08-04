@@ -394,8 +394,27 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
       progressSignal.set(100);
 
-      // Filtrar registros con stock <= 0 (siempre se excluyen en el Excel)
-      const filteredData = allData.filter(item => (item.stock || 0) > 0);
+      // Aplicar la misma lógica de STOCK CERO que usa la vista:
+      // - Grupos con stock total > 0 → solo items con stock positivo
+      // - Grupos con stock total = 0 → una fila sintética con almacenaje='STOCK CERO'
+      const gruposExcel = new Map<string, any[]>();
+      allData.forEach((item: any) => {
+        const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
+        if (!gruposExcel.has(key)) gruposExcel.set(key, []);
+        gruposExcel.get(key)!.push(item);
+      });
+
+      const filteredData: any[] = [];
+      gruposExcel.forEach((items) => {
+        const totalStock = items.reduce((sum: number, i: any) => sum + (i.stock > 0 ? i.stock : 0), 0);
+        if (totalStock > 0) {
+          // Solo items con stock positivo
+          items.forEach((item: any) => { if ((item.stock || 0) > 0) filteredData.push(item); });
+        } else {
+          // Fila sintética STOCK CERO para el grupo completo
+          filteredData.push({ ...items[0], almacenaje: 'STOCK CERO', stock: 0, esEspecialCero: true });
+        }
+      });
 
       // Procesar datos para Excel (con o sin subtotales)
       const excelRows: any[] = [];
