@@ -266,4 +266,19 @@ export class FilterDataService {
     return String(encontrada.id).padStart(2, '0');
   }
 
+  /**
+   * Obtiene el nombre de la empresa a partir de su ID (pk entero o string ej: "01", 1).
+   * Contrastado con la lista de empresas cargadas de /Empresa/.
+   * @param empresaId ID de la empresa (ej: "01", "1", 1).
+   */
+  public obtenerNombreEmpresa(empresaId: string | number | undefined | null): string {
+    if (empresaId === undefined || empresaId === null || empresaId === '') return '';
+    const idNum = typeof empresaId === 'number' ? empresaId : parseInt(String(empresaId).trim(), 10);
+    if (isNaN(idNum)) return String(empresaId);
+
+    const lista = this.empresas();
+    const encontrada = lista.find(e => e.id === idNum);
+    return encontrada ? encontrada.empresa : String(empresaId);
+  }
+
 }

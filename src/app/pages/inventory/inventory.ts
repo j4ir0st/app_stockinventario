@@ -147,11 +147,12 @@ export class InventoryComponent implements OnInit, OnDestroy {
     this.suscripcionRefresco?.unsubscribe();
   }
 
-  /**
+
+
+    /**
    * Carga los datos de stock o tránsito desde la API usando los filtros globales.
    */
-  cargarStock(urlOrSearch?: string): void {
-    // Evitar múltiples cargas simultáneas
+  async cargarStock(urlOrSearch?: string): Promise<void> {
     if (this.loading() && !urlOrSearch) return;
 
     this.loading.set(true);
@@ -162,7 +163,6 @@ export class InventoryComponent implements OnInit, OnDestroy {
     if (urlOrSearch && (urlOrSearch.includes('StockInventario') || urlOrSearch.includes('SI_Transito'))) {
       queryParams = urlOrSearch;
 
-      // Extraer página si es una URL de paginación
       const match = urlOrSearch.match(/page=(\d+)/);
       if (match) this.paginaActual.set(parseInt(match[1]));
     } else {
@@ -170,15 +170,25 @@ export class InventoryComponent implements OnInit, OnDestroy {
     }
 
     if (this.verTransito()) {
-      this.apiService.getSITransito(queryParams).subscribe({
-        next: (data: any) => this.procesarResultadosTransito(data),
-        error: (err: any) => this.manejarError(err)
-      });
+      try {
+        const data = await firstValueFrom(this.apiService.getSITransito(queryParams));
+        this.procesarResultadosTransito(data);
+      } catch (err) {
+        this.manejarError(err);
+      }
     } else {
-      this.apiService.getStockInventario(queryParams).subscribe({
-        next: (data: any) => this.procesarResultados(data),
-        error: (err: any) => this.manejarError(err)
-      });
+      try {
+        const promesaStock = firstValueFrom(this.apiService.getStockInventario(queryParams));
+        const promesaTransito = firstValueFrom(this.apiService.getSITransito({}, 1000)).catch(err => {
+          console.error('Error al obtener SI_Transito:', err);
+          return { results: [] };
+        });
+
+        const [dataStock, dataTransito] = await Promise.all([promesaStock, promesaTransito]);
+        this.procesarResultados(dataStock, dataTransito);
+      } catch (err) {
+        this.manejarError(err);
+      }
     }
   }
 
@@ -203,31 +213,40 @@ export class InventoryComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
-  private procesarResultados(data: any, esNuevaCarga = true): void {
-    console.log('Procesando resultados StockInventario:', data);
-    const rawResults = data.results || (Array.isArray(data) ? data : []);
+  private procesarResultados(dataStock: any, dataTransito?: any, esNuevaCarga = true): void {
+    console.log('Procesando resultados StockInventario con Transito:', dataStock);
+    const rawResults = dataStock.results || (Array.isArray(dataStock) ? dataStock : []);
 
     if (esNuevaCarga) {
       this.stockItems.set(rawResults);
-      this.nextUrl.set(data.next || null);
-      this.prevUrl.set(data.previous || null);
-      this.totalCount.set(data.count || rawResults.length);
+      this.nextUrl.set(dataStock.next || null);
+      this.prevUrl.set(dataStock.previous || null);
+      this.totalCount.set(dataStock.count || rawResults.length);
 
-      // Actualizar tamaño de página extrayendo el parámetro top de la URL de paginación
-      const urlRef = data.next || data.previous || '';
+      const urlRef = dataStock.next || dataStock.previous || '';
       const topMatch = urlRef.match(/[?&]top=(\d+)/);
       this.tamanioPagina.set(topMatch ? parseInt(topMatch[1], 10) : 60);
 
-      // Actualizar lista de depósitos para el filtro del sidebar
       this.filterDataService.actualizarDepositos(rawResults);
     }
 
-    // Lógica de filtrado y transformación por "Ver Cero"
     const verCero = this.verCero();
 
-    // Primero agrupamos por código + tipo para aplicar la lógica especial
-    const gruposMapa = new Map<string, any[]>();
+    // Indexar registros de tránsito por código y tipo
+    const rawTransito = dataTransito?.results || (Array.isArray(dataTransito) ? dataTransito : []);
+    const mapaTransito = new Map<string, any[]>();
+    rawTransito.forEach((tReg: any) => {
+      const cod = (tReg.prod || '').trim().toUpperCase();
+      const tip = (tReg.tipo_producto || '').trim().toUpperCase();
+      if (cod && tip) {
+        const clave = `${cod}_${tip}`;
+        if (!mapaTransito.has(clave)) mapaTransito.set(clave, []);
+        mapaTransito.get(clave)?.push(tReg);
+      }
+    });
 
+    // Agrupar los resultados de StockInventario por código + tipo
+    const gruposMapa = new Map<string, any[]>();
     rawResults.forEach((item: any) => {
       const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
       if (!gruposMapa.has(key)) {
@@ -236,28 +255,29 @@ export class InventoryComponent implements OnInit, OnDestroy {
       gruposMapa.get(key)?.push(item);
     });
 
-    const resultsProcesados: any[] = [];
+    const agrupados: any[] = [];
 
     gruposMapa.forEach((items, key) => {
-      const totalStockGrupo = items.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
+      const codigoClean = (items[0]?.prod_id?.codigo || '').trim().toUpperCase();
+      const tipoClean = (items[0]?.prod_id?.tipo || '').trim().toUpperCase();
+      const claveTransito = `${codigoClean}_${tipoClean}`;
 
-      if (totalStockGrupo > 0) {
-        // Si hay stock, filtramos los items individuales si verCero es false
+      const totalStockFisico = items.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
+      const itemsProcesados: any[] = [];
+
+      if (totalStockFisico > 0) {
         items.forEach(item => {
           if (verCero || (item.stock || 0) > 0) {
-            resultsProcesados.push(item);
+            itemsProcesados.push(item);
           }
         });
       } else {
-        // Si el total es 0 o menor, solo mostramos si verCero es true 
-        // O si queremos el registro especial de "STOCK CERO"
         if (verCero) {
-          items.forEach(item => resultsProcesados.push(item));
+          items.forEach(item => itemsProcesados.push(item));
         } else {
-          // Caso especial: registro único "STOCK CERO" para que aparezca la suma
           const primerItem = items[0];
           if (primerItem) {
-            resultsProcesados.push({
+            itemsProcesados.push({
               ...primerItem,
               almacenaje: 'STOCK CERO',
               stock: 0,
@@ -266,57 +286,59 @@ export class InventoryComponent implements OnInit, OnDestroy {
           }
         }
       }
-    });
 
-    // Agrupar y sumar por código + tipo para la visualización final
-    const agrupados: any[] = [];
-    let currentGroup: any[] = [];
-    let lastGroupKey = '';
+      // Buscar si existen coincidencias en la tabla SI_Transito para este código y tipo
+      const coincidenciasTransito = mapaTransito.get(claveTransito) || [];
+      if (coincidenciasTransito.length > 0) {
+        // Agrupar tránsito por empresa y sumar cant_pend
+        const transitoPorEmpresa = new Map<string, { registro: any; totalCantPend: number }>();
+        coincidenciasTransito.forEach((tReg: any) => {
+          const nombreEmpresa = this.filterDataService.obtenerNombreEmpresa(tReg.empresa) || tReg.empresa || 'EMPRESA';
+          const cantPend = parseFloat(tReg.cant_pend || '0') || 0;
 
-    resultsProcesados.forEach((item: any, index: number) => {
-      const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
-
-      if (index === 0) {
-        lastGroupKey = key;
-        currentGroup.push(item);
-      } else if (key === lastGroupKey) {
-        currentGroup.push(item);
-      } else {
-        const total = currentGroup.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
-        agrupados.push({
-          items: currentGroup,
-          key: lastGroupKey,
-          codigo: currentGroup[0].prod_id?.codigo,
-          tipo: currentGroup[0].prod_id?.tipo,
-          total: total
+          if (transitoPorEmpresa.has(nombreEmpresa)) {
+            transitoPorEmpresa.get(nombreEmpresa)!.totalCantPend += cantPend;
+          } else {
+            transitoPorEmpresa.set(nombreEmpresa, { registro: tReg, totalCantPend: cantPend });
+          }
         });
 
-        lastGroupKey = key;
-        currentGroup = [item];
-      }
-
-      if (index === resultsProcesados.length - 1) {
-        const total = currentGroup.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
-        agrupados.push({
-          items: currentGroup,
-          key: lastGroupKey,
-          codigo: currentGroup[0].prod_id?.codigo,
-          tipo: currentGroup[0].prod_id?.tipo,
-          total: total
+        // Generar las filas de tránsito consolidado
+        transitoPorEmpresa.forEach(({ registro, totalCantPend }, nombreEmpresa) => {
+          if (totalCantPend > 0) {
+            const primerStock = items[0];
+            itemsProcesados.push({
+              prod_id: {
+                prov_id: registro.prov || primerStock?.prod_id?.prov_id || '',
+                grupo_id: registro.grupo || primerStock?.prod_id?.grupo_id || '',
+                linea_id: registro.linea || primerStock?.prod_id?.linea_id || '',
+                tipo: registro.tipo_producto || primerStock?.prod_id?.tipo || '',
+                codigo: registro.prod || primerStock?.prod_id?.codigo || '',
+                descripcion: registro.descripcion || primerStock?.prod_id?.descripcion || ''
+              },
+              almacenaje: `${nombreEmpresa} | STOCK EN TRANSITO`,
+              stock: totalCantPend,
+              esTransito: true
+            });
+          }
         });
       }
+
+      // Calcular el subtotal por código incluyendo el stock físico y el stock en tránsito
+      const totalGrupo = itemsProcesados.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
+
+      agrupados.push({
+        items: itemsProcesados,
+        key: key,
+        codigo: items[0]?.prod_id?.codigo,
+        tipo: items[0]?.prod_id?.tipo,
+        total: totalGrupo
+      });
     });
 
     this.itemsAgrupados.set(agrupados);
     this.loading.set(false);
-
-    // Resetear scroll al inicio de la tabla
-    setTimeout(() => {
-      const tableContainer = this.eRef.nativeElement.querySelector('.table-container');
-      if (tableContainer) tableContainer.scrollTop = 0;
-    }, 0);
   }
-
 
   private manejarError(err: any): void {
     console.error('Error en cargarStockInventario:', err);
@@ -486,9 +508,24 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
       progressSignal.set(100);
 
-      // Aplicar la misma lógica de STOCK CERO que usa la vista:
-      // - Grupos con stock total > 0 → solo items con stock positivo
-      // - Grupos con stock total = 0 → una fila sintética con almacenaje='STOCK CERO'
+      // Consultar la tabla de tránsito para integrar en la exportación Excel
+      const transitoResp: any = await firstValueFrom(this.apiService.getSITransito(filtros, 1000)).catch(err => {
+        console.error('Error al obtener SI_Transito para Excel:', err);
+        return { results: [] };
+      });
+      const rawTransitoExcel = transitoResp?.results || (Array.isArray(transitoResp) ? transitoResp : []);
+      const mapaTransitoExcel = new Map<string, any[]>();
+      rawTransitoExcel.forEach((tReg: any) => {
+        const cod = (tReg.prod || '').trim().toUpperCase();
+        const tip = (tReg.tipo_producto || '').trim().toUpperCase();
+        if (cod && tip) {
+          const clave = `${cod}_${tip}`;
+          if (!mapaTransitoExcel.has(clave)) mapaTransitoExcel.set(clave, []);
+          mapaTransitoExcel.get(clave)?.push(tReg);
+        }
+      });
+
+      // Agrupar por código + tipo
       const gruposExcel = new Map<string, any[]>();
       allData.forEach((item: any) => {
         const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
@@ -496,64 +533,78 @@ export class InventoryComponent implements OnInit, OnDestroy {
         gruposExcel.get(key)!.push(item);
       });
 
-      const filteredData: any[] = [];
+      const excelRows: any[] = [];
+
       gruposExcel.forEach((items) => {
+        const codigoClean = (items[0]?.prod_id?.codigo || '').trim().toUpperCase();
+        const tipoClean = (items[0]?.prod_id?.tipo || '').trim().toUpperCase();
+        const claveTransito = `${codigoClean}_${tipoClean}`;
+
         const totalStock = items.reduce((sum: number, i: any) => sum + (i.stock > 0 ? i.stock : 0), 0);
+        const itemsGrupoExcel: any[] = [];
+
         if (totalStock > 0) {
-          // Solo items con stock positivo
-          items.forEach((item: any) => { if ((item.stock || 0) > 0) filteredData.push(item); });
+          items.forEach((item: any) => { if ((item.stock || 0) > 0) itemsGrupoExcel.push(item); });
         } else {
-          // Fila sintética STOCK CERO: solo para productos tipo MER
-          if ((items[0].prod_id?.tipo || '').trim().toUpperCase() === 'MER') {
-            filteredData.push({ ...items[0], almacenaje: 'STOCK CERO', stock: 0, esEspecialCero: true });
+          if ((items[0]?.prod_id?.tipo || '').trim().toUpperCase() === 'MER') {
+            itemsGrupoExcel.push({ ...items[0], almacenaje: 'STOCK CERO', stock: 0, esEspecialCero: true });
           }
         }
-      });
 
-      // Procesar datos para Excel (con o sin subtotales)
-      const excelRows: any[] = [];
-      let currentGroupKey = '';
-      let currentGroupSum = 0;
+        let sumaGrupo = 0;
 
-      filteredData.forEach((item, index) => {
-        const key = `${item.prod_id?.codigo || ''}_${item.prod_id?.tipo || ''}`;
-
-        // Si se requieren subtotales y cambiamos de grupo, insertamos la fila de suma
-        if (incluirSubtotales && index > 0 && key !== currentGroupKey) {
+        // 1. Agregar filas individuales de stock físico
+        itemsGrupoExcel.forEach((item: any) => {
+          if (item.stock > 0) {
+            sumaGrupo += item.stock;
+          }
           excelRows.push({
-            'PROVEEDOR': '-',
-            'GRUPO': '-',
-            'LINEA': '-',
-            'TIPO': '-',
-            'CÓDIGO': '-',
-            'DESCRIPCIÓN': 'SUMA DEL TOTAL POR CÓDIGO',
-            'EMPRESA Y DEPOSITO': '-',
-            'CANTIDAD': currentGroupSum
+            'PROVEEDOR': item.prod_id?.prov_id || '',
+            'GRUPO': item.prod_id?.grupo_id || '',
+            'LINEA': item.prod_id?.linea_id || '',
+            'TIPO': item.prod_id?.tipo || '',
+            'CÓDIGO': item.prod_id?.codigo || '',
+            'DESCRIPCIÓN': item.prod_id?.descripcion || '',
+            'EMPRESA Y DEPOSITO': item.almacenaje || '',
+            'CANTIDAD': item.stock || 0
           });
-          currentGroupSum = 0;
-        }
-
-        currentGroupKey = key;
-        if (item.stock > 0) {
-          currentGroupSum += item.stock
-        } else {
-          currentGroupSum += 0
-        }
-
-        // Fila del item individual
-        excelRows.push({
-          'PROVEEDOR': item.prod_id?.prov_id || '',
-          'GRUPO': item.prod_id?.grupo_id || '',
-          'LINEA': item.prod_id?.linea_id || '',
-          'TIPO': item.prod_id?.tipo || '',
-          'CÓDIGO': item.prod_id?.codigo || '',
-          'DESCRIPCIÓN': item.prod_id?.descripcion || '',
-          'EMPRESA Y DEPOSITO': item.almacenaje || '',
-          'CANTIDAD': item.stock || 0
         });
 
-        // Al llegar al final, si se requieren subtotales, insertamos la última suma
-        if (incluirSubtotales && index === filteredData.length - 1) {
+        // 2. Agregar filas de stock en tránsito si existen para este producto
+        const coincidenciasTransito = mapaTransitoExcel.get(claveTransito) || [];
+        if (coincidenciasTransito.length > 0) {
+          const transitoPorEmpresa = new Map<string, { registro: any; totalCantPend: number }>();
+          coincidenciasTransito.forEach((tReg: any) => {
+            const nombreEmpresa = this.filterDataService.obtenerNombreEmpresa(tReg.empresa) || tReg.empresa || 'EMPRESA';
+            const cantPend = parseFloat(tReg.cant_pend || '0') || 0;
+
+            if (transitoPorEmpresa.has(nombreEmpresa)) {
+              transitoPorEmpresa.get(nombreEmpresa)!.totalCantPend += cantPend;
+            } else {
+              transitoPorEmpresa.set(nombreEmpresa, { registro: tReg, totalCantPend: cantPend });
+            }
+          });
+
+          transitoPorEmpresa.forEach(({ registro, totalCantPend }, nombreEmpresa) => {
+            if (totalCantPend > 0) {
+              sumaGrupo += totalCantPend;
+              const primerStock = items[0];
+              excelRows.push({
+                'PROVEEDOR': registro.prov || primerStock?.prod_id?.prov_id || '',
+                'GRUPO': registro.grupo || primerStock?.prod_id?.grupo_id || '',
+                'LINEA': registro.linea || primerStock?.prod_id?.linea_id || '',
+                'TIPO': registro.tipo_producto || primerStock?.prod_id?.tipo || '',
+                'CÓDIGO': registro.prod || primerStock?.prod_id?.codigo || '',
+                'DESCRIPCIÓN': registro.descripcion || primerStock?.prod_id?.descripcion || '',
+                'EMPRESA Y DEPOSITO': `${nombreEmpresa} | STOCK EN TRANSITO`,
+                'CANTIDAD': totalCantPend
+              });
+            }
+          });
+        }
+
+        // 3. Fila de subtotal por código si incluirSubtotales es verdadero
+        if (incluirSubtotales) {
           excelRows.push({
             'PROVEEDOR': '-',
             'GRUPO': '-',
@@ -562,7 +613,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
             'CÓDIGO': '-',
             'DESCRIPCIÓN': 'SUMA DEL TOTAL POR CÓDIGO',
             'EMPRESA Y DEPOSITO': '-',
-            'CANTIDAD': currentGroupSum
+            'CANTIDAD': sumaGrupo
           });
         }
       });

@@ -177,8 +177,8 @@
         <tbody>
           @for (grupo of itemsAgrupados(); track grupo.key) {
           <!-- Filas de items -->
-          @for (item of grupo.items; track item.url) {
-          <tr [class.row-zero]="item.esEspecialCero">
+          @for (item of grupo.items; track item.url || item.almacenaje) {
+          <tr [class.row-zero]="item.esEspecialCero" [class.row-transito]="item.esTransito">
             <td>
               <div class="table-text">{{ item.prod_id?.prov_id }}</div>
             </td>
@@ -198,22 +198,26 @@
               <div class="prod-desc">{{ item.prod_id?.descripcion }}</div>
             </td>
             <td>
-              <div class="table-text" [class.text-zero]="item.esEspecialCero">{{ item.almacenaje }}</div>
+              <div class="table-text" [class.text-zero]="item.esEspecialCero" [class.text-transito]="item.esTransito">{{ item.almacenaje }}</div>
             </td>
             <td>
-              <!-- Cantidad clicable si stock > 0 y no es el registro especial de cero -->
-              @if (!item.esEspecialCero && item.stock > 0) {
+              <!-- Cantidad clicable si stock > 0, no es especial cero y no es tránsito -->
+              @if (!item.esEspecialCero && !item.esTransito && item.stock > 0) {
               <button class="btn-cantidad" (click)="verDetalle(item)" title="Ver detalle del kardex (Stock_ERP)">
                 <span class="badge" [class.badge-warning]="item.stock >= 1 && item.stock <= 4"
                   [class.badge-success]="item.stock >= 5">
                   {{ item.stock }}
                 </span>
               </button>
+              } @else if (item.esTransito) {
+              <span class="badge badge-warning" title="Cantidad pendiente en tránsito">
+                {{ item.stock | number:'1.0-2' }}
+              </span>
               } @else {
               <span class="badge" [class.badge-danger]="item.stock <= 0"
                 [class.badge-warning]="item.stock >= 1 && item.stock <= 4" [class.badge-success]="item.stock >= 5">
                 {{ item.stock < 0 ? 0 : item.stock }} </span>
-                  }
+              }
             </td>
           </tr>
           }
