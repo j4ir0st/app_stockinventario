@@ -32,6 +32,7 @@ Para desplegar la aplicación en un servidor, se utiliza Docker. El proceso comp
 
 | Versión | Fecha | Descripción de Cambios |
 | :--- | :--- | :--- |
+| **0.7.0** | 2026-08-10 | **Vista de Tránsito y Exportación Especializada**: Se integró la casilla de verificación **"Ver Tránsito"** a la izquierda de "Ver cant. Cero". Al activarla, se consulta y visualiza la tabla `/SI_Transito/` manteniendo la paginación dinámica (`[cant] regs. | Pág. X de Y`). Al hacer clic en el botón de exportar a Excel con Tránsito activo, se realiza la descarga de todos los registros utilizando `top=1000`. |
 | **0.6.0** | 2026-05-15 | **Personalización Dinámica de Temas**: Implementación de `ThemeService` con Angular Signals para personalización de colores primarios/secundarios en tiempo real con persistencia. Nuevo `ColorPicker` con glassmorphism. Refactorización global a variables CSS dinámicas (`color-mix`). Modo oscuro dinámico (oscurecimiento proporcional). Delineado de seguridad en títulos. Traslado definitivo de subtotales al Reporte General. |
 | **0.5.4** | 2026-05-12 | Diferenciación de Reportes: Se eliminaron los subtotales por código del reporte de Heridas y Quemados, manteniéndolos únicamente en el Reporte General. Optimización de la función de exportación compartida. |
 | **0.5.3** | 2026-05-08 | Mejoras de UX y Datos: Cierre automático del menú de perfil al hacer clic fuera, corrección del campo 'Tipo' en tabla y Excel, y optimización de exportación a Excel (exclusión de stock cero e inclusión de subtotales agrupados). Corrección de bucle infinito en búsqueda. |

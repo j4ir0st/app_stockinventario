@@ -53,8 +53,10 @@ export class InventoryComponent implements OnInit, OnDestroy {
   loadingExportHeridas = signal(false);
   exportProgressHeridas = signal(0);
 
-  // Ver registros con stock cero
+  // Ver registros con stock cero y tránsito
   verCero = signal(false);
+  verTransito = signal(false);
+  itemsTransito = signal<any[]>([]);
 
   // --- Estado de la vista detalle ---
   vistaDetalle = signal(false);
@@ -146,7 +148,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Carga los datos de stock desde la API usando los filtros globales.
+   * Carga los datos de stock o tránsito desde la API usando los filtros globales.
    */
   cargarStock(urlOrSearch?: string): void {
     // Evitar múltiples cargas simultáneas
@@ -157,7 +159,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
     const filtros = this.searchService.filtros();
     let queryParams: any = filtros;
 
-    if (urlOrSearch && urlOrSearch.includes('StockInventario')) {
+    if (urlOrSearch && (urlOrSearch.includes('StockInventario') || urlOrSearch.includes('SI_Transito'))) {
       queryParams = urlOrSearch;
 
       // Extraer página si es una URL de paginación
@@ -167,10 +169,38 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.paginaActual.set(1);
     }
 
-    this.apiService.getStockInventario(queryParams).subscribe({
-      next: (data: any) => this.procesarResultados(data),
-      error: (err: any) => this.manejarError(err)
-    });
+    if (this.verTransito()) {
+      this.apiService.getSITransito(queryParams).subscribe({
+        next: (data: any) => this.procesarResultadosTransito(data),
+        error: (err: any) => this.manejarError(err)
+      });
+    } else {
+      this.apiService.getStockInventario(queryParams).subscribe({
+        next: (data: any) => this.procesarResultados(data),
+        error: (err: any) => this.manejarError(err)
+      });
+    }
+  }
+
+  private procesarResultadosTransito(data: any): void {
+    console.log('Procesando resultados SI_Transito:', data);
+    const rawResults = data.results || (Array.isArray(data) ? data : []);
+
+    this.itemsTransito.set(rawResults);
+    this.nextUrl.set(data.next || null);
+    this.prevUrl.set(data.previous || null);
+    this.totalCount.set(data.count || rawResults.length);
+
+    const urlRef = data.next || data.previous || '';
+    const topMatch = urlRef.match(/[?&]top=(\d+)/);
+    this.tamanioPagina.set(topMatch ? parseInt(topMatch[1], 10) : 60);
+
+    this.loading.set(false);
+
+    setTimeout(() => {
+      const tableContainer = this.eRef.nativeElement.querySelector('.table-container');
+      if (tableContainer) tableContainer.scrollTop = 0;
+    }, 0);
   }
 
   private procesarResultados(data: any, esNuevaCarga = true): void {
@@ -309,6 +339,11 @@ export class InventoryComponent implements OnInit, OnDestroy {
    * Descarga todos los registros de la búsqueda actual en un archivo Excel.
    */
   async descargarExcel() {
+    if (this.verTransito()) {
+      await this.ejecutarExportacionExcelTransito();
+      return;
+    }
+
     const filtros = this.searchService.filtros();
     await this.ejecutarExportacionExcel(
       filtros,
@@ -317,6 +352,63 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.exportProgressGeneral,
       true // Incluir subtotales en el reporte general
     );
+  }
+
+  /**
+   * Exporta la tabla SI_Transito completa a Excel usando el parámetro top=1000.
+   */
+  private async ejecutarExportacionExcelTransito() {
+    if (this.loadingExportGeneral()) return;
+
+    this.loadingExportGeneral.set(true);
+    this.exportProgressGeneral.set(0);
+    console.log('Iniciando exportación a Excel de SI_Transito (top=1000)...');
+
+    try {
+      const filtros = this.searchService.filtros();
+      const response: any = await firstValueFrom(this.apiService.getSITransito(filtros, 1000));
+
+      if (!response) {
+        throw new Error('No se recibió respuesta del servidor');
+      }
+
+      const allData = response.results || (Array.isArray(response) ? response : []);
+
+      if (allData.length === 0) {
+        alert('No hay datos de tránsito para exportar');
+        this.loadingExportGeneral.set(false);
+        return;
+      }
+
+      this.exportProgressGeneral.set(100);
+
+      const excelRows = allData.map((item: any) => ({
+        'PROVEEDOR': item.prov || '',
+        'GRUPO': item.grupo || '',
+        'LINEA': item.linea || '',
+        'TIPO': item.tipo_producto || '',
+        'CÓDIGO': item.prod || '',
+        'DESCRIPCIÓN': item.descripcion || '',
+        'EMPRESA': item.empresa || '',
+        'FECHA MOV.': item.fecha_mov || '',
+        'ESTADO': item.estado || '',
+        'CANTIDAD': parseFloat(item.cantidad || '0'),
+        'CANT. ATENDIDA': parseFloat(item.cant_aten || '0'),
+        'CANT. PENDIENTE': parseFloat(item.cant_pend || '0')
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Stock Tránsito');
+
+      const fileName = `Stock_Transito_${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } catch (error) {
+      console.error('Error exportando a Excel de Tránsito:', error);
+      alert('Error al generar el archivo Excel de Tránsito');
+    } finally {
+      this.loadingExportGeneral.set(false);
+    }
   }
 
   /**
@@ -411,8 +503,10 @@ export class InventoryComponent implements OnInit, OnDestroy {
           // Solo items con stock positivo
           items.forEach((item: any) => { if ((item.stock || 0) > 0) filteredData.push(item); });
         } else {
-          // Fila sintética STOCK CERO para el grupo completo
-          filteredData.push({ ...items[0], almacenaje: 'STOCK CERO', stock: 0, esEspecialCero: true });
+          // Fila sintética STOCK CERO: solo para productos tipo MER
+          if ((items[0].prod_id?.tipo || '').trim().toUpperCase() === 'MER') {
+            filteredData.push({ ...items[0], almacenaje: 'STOCK CERO', stock: 0, esEspecialCero: true });
+          }
         }
       });
 
@@ -499,6 +593,26 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
   toggleVerCero(): void {
     this.verCero.update(v => !v);
+  }
+
+  toggleVerTransito(): void {
+    this.verTransito.update(v => !v);
+    this.cargarStock();
+  }
+
+  /**
+   * Determina la clase CSS para la insignia del campo estado en la tabla de Tránsito.
+   * @param estado Descripción del estado del producto en tránsito.
+   */
+  claseEstadoTransito(estado: string): string {
+    const estadoClean = (estado || '').trim().toUpperCase();
+    if (estadoClean === 'ORDEN COLOCADA O EN BACKORDER PENDIENTE DE CONFIRMAR') {
+      return 'badge-estado-orange';
+    }
+    if (estadoClean === 'CARGA EN ADUANAS O NUMERADA PENDIENTE DE RETIRO') {
+      return 'badge-estado-teal';
+    }
+    return 'badge-estado-blue';
   }
 
   /**

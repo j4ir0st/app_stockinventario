@@ -221,6 +221,15 @@
     margin-left: 0.5rem;
 }
 
+.toggles-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0 0.6rem;
+    border-left: 1px solid var(--border-color);
+    margin-left: 0.25rem;
+}
+
 .toggle-container {
     display: flex;
     align-items: center;
@@ -1075,4 +1084,69 @@
 .inventory-container.dark-mode .filtro-detalle-wrapper:focus-within {
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-pink), transparent 85%);
     border-color: var(--primary-pink);
+}
+
+/* Estilos de Tabla de Tránsito */
+.transito-table th {
+    white-space: normal;
+    vertical-align: middle;
+    text-align: center;
+    line-height: 1.15;
+}
+
+.badge-estado {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    max-width: 220px;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+/* ORDEN COLOCADA O EN BACKORDER PENDIENTE DE CONFIRMAR -> Anaranjado */
+.badge-estado-orange {
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* CARGA EN ADUANAS O NUMERADA PENDIENTE DE RETIRO -> Azul Teal */
+.badge-estado-teal {
+    background: rgba(20, 184, 166, 0.15);
+    color: #0d9488;
+    border: 1px solid rgba(20, 184, 166, 0.3);
+}
+
+/* Demás estados -> Azul standard */
+.badge-estado-blue {
+    background: rgba(59, 130, 246, 0.15);
+    color: #1d4ed8;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Modo Oscuro para badges de estado */
+.inventory-container.dark-mode .badge-estado-orange {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.inventory-container.dark-mode .badge-estado-teal {
+    background: rgba(20, 184, 166, 0.22);
+    color: #2dd4bf;
+    border-color: rgba(20, 184, 166, 0.4);
+}
+
+.inventory-container.dark-mode .badge-estado-blue {
+    background: rgba(59, 130, 246, 0.22);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.4);
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #1d4ed8;
 }

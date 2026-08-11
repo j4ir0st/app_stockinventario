@@ -64,11 +64,11 @@ export class ApiService {
    */
   getStockERP(filtros: { tipo_producto?: string; codigo_producto?: string; cod_empresa?: string; tipo_almacenaje?: string; tipo_almacen?: string }, top: number = 1000): Observable<any> {
     let params = new HttpParams().set('top', top.toString());
-    if (filtros.tipo_producto)   params = params.set('tipo_producto',   filtros.tipo_producto);
+    if (filtros.tipo_producto) params = params.set('tipo_producto', filtros.tipo_producto);
     if (filtros.codigo_producto) params = params.set('codigo_producto', filtros.codigo_producto);
-    if (filtros.cod_empresa)     params = params.set('cod_empresa',     filtros.cod_empresa);
+    if (filtros.cod_empresa) params = params.set('cod_empresa', filtros.cod_empresa);
     if (filtros.tipo_almacenaje) params = params.set('tipo_almacenaje', filtros.tipo_almacenaje);
-    if (filtros.tipo_almacen)    params = params.set('tipo_almacen',    filtros.tipo_almacen);
+    if (filtros.tipo_almacen) params = params.set('tipo_almacen', filtros.tipo_almacen);
     return this.get<any>('Stock_ERP/', params);
   }
 
@@ -109,7 +109,7 @@ export class ApiService {
     }
 
     let httpParams = new HttpParams();
-    
+
     if (typeof paramsOrUrl === 'object' && paramsOrUrl !== null) {
       Object.keys(paramsOrUrl).forEach(key => {
         if (paramsOrUrl[key]) {
@@ -134,6 +134,86 @@ export class ApiService {
     }
 
     return this.get('StockInventario/', httpParams);
+  }
+
+  /**
+   * Obtiene la información de productos en tránsito desde la API SI_Transito.
+   * @param paramsOrUrl Objeto con filtros o URL de paginación.
+   * @param top Límite de resultados opcional.
+   */
+  getSITransito(paramsOrUrl?: any, top?: number): Observable<any> {
+    if (typeof paramsOrUrl === 'string' && (paramsOrUrl.includes('SI_Transito') || paramsOrUrl.includes('/api/'))) {
+      let finalUrl = this.fixUrl(paramsOrUrl);
+      if (!finalUrl.startsWith('/') && !finalUrl.startsWith('http')) {
+        finalUrl = this.baseUrl + finalUrl;
+      }
+      if (top && !finalUrl.includes('top=')) {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `top=${top}`;
+      }
+      if (!finalUrl.includes('format=json')) {
+        finalUrl += (finalUrl.includes('?') ? '&' : '?') + `format=json`;
+      }
+      return this.get<any>(finalUrl);
+    }
+
+    let httpParams = new HttpParams();
+
+    if (typeof paramsOrUrl === 'object' && paramsOrUrl !== null) {
+      // 1. Buscador global (buscar)
+      const buscar = (paramsOrUrl.buscar || '').trim();
+      if (buscar) {
+        httpParams = httpParams.set('buscar', buscar);
+      }
+
+      // 2. Proveedor (prov)
+      const prov = (paramsOrUrl.prov || '').trim();
+      if (prov) {
+        httpParams = httpParams.set('prov', prov);
+      }
+
+      // 3. Grupo (grupo)
+      const grupo = (paramsOrUrl.grupo || '').trim();
+      if (grupo) {
+        httpParams = httpParams.set('grupo', grupo);
+      }
+
+      // 4. Línea (linea)
+      const linea = (paramsOrUrl.linea || '').trim();
+      if (linea) {
+        httpParams = httpParams.set('linea', linea);
+      }
+
+      // 5. Tipo Producto (tipo_producto)
+      const tipoProd = (paramsOrUrl.tipo_producto || '').trim();
+      if (tipoProd) {
+        if (tipoProd.includes(',')) {
+          const primerTipo = tipoProd.split(',')[0].trim();
+          if (primerTipo) {
+            httpParams = httpParams.set('tipo_producto', primerTipo);
+          }
+        } else {
+          httpParams = httpParams.set('tipo_producto', tipoProd);
+        }
+      }
+    } else if (typeof paramsOrUrl === 'string' && paramsOrUrl) {
+      if (paramsOrUrl.includes('=')) {
+        const parts = paramsOrUrl.split('&');
+        parts.forEach(p => {
+          const [k, v] = p.split('=');
+          if (v && decodeURIComponent(v).trim()) {
+            httpParams = httpParams.set(k, decodeURIComponent(v).trim());
+          }
+        });
+      } else if (paramsOrUrl.trim()) {
+        httpParams = httpParams.set('buscar', paramsOrUrl.trim());
+      }
+    }
+
+    if (top) {
+      httpParams = httpParams.set('top', top.toString());
+    }
+
+    return this.get('SI_Transito/', httpParams);
   }
 
   /**
