@@ -195,8 +195,12 @@ export class InventoryComponent implements OnInit, OnDestroy {
   private procesarResultadosTransito(data: any): void {
     console.log('Procesando resultados SI_Transito:', data);
     const rawResults = data.results || (Array.isArray(data) ? data : []);
+    const resultsProcesados = rawResults.map((item: any) => ({
+      ...item,
+      prov: this.filterDataService.obtenerProveedorConsolidado(item.prov)
+    }));
 
-    this.itemsTransito.set(rawResults);
+    this.itemsTransito.set(resultsProcesados);
     this.nextUrl.set(data.next || null);
     this.prevUrl.set(data.previous || null);
     this.totalCount.set(data.count || rawResults.length);
@@ -265,24 +269,39 @@ export class InventoryComponent implements OnInit, OnDestroy {
       const totalStockFisico = items.reduce((sum, i) => sum + (i.stock > 0 ? i.stock : 0), 0);
       const itemsProcesados: any[] = [];
 
+      const procesarItemConProvConsolidado = (item: any) => {
+        const provOriginal = item.prod_id?.prov_id;
+        const provConsolidado = this.filterDataService.obtenerProveedorConsolidado(provOriginal);
+        if (provConsolidado && item.prod_id) {
+          return {
+            ...item,
+            prod_id: {
+              ...item.prod_id,
+              prov_id: provConsolidado
+            }
+          };
+        }
+        return item;
+      };
+
       if (totalStockFisico > 0) {
         items.forEach(item => {
           if (verCero || (item.stock || 0) > 0) {
-            itemsProcesados.push(item);
+            itemsProcesados.push(procesarItemConProvConsolidado(item));
           }
         });
       } else {
         if (verCero) {
-          items.forEach(item => itemsProcesados.push(item));
+          items.forEach(item => itemsProcesados.push(procesarItemConProvConsolidado(item)));
         } else {
           const primerItem = items[0];
           if (primerItem) {
-            itemsProcesados.push({
+            itemsProcesados.push(procesarItemConProvConsolidado({
               ...primerItem,
               almacenaje: 'STOCK CERO',
               stock: 0,
               esEspecialCero: true
-            });
+            }));
           }
         }
       }
@@ -307,9 +326,10 @@ export class InventoryComponent implements OnInit, OnDestroy {
         transitoPorEmpresa.forEach(({ registro, totalCantPend }, nombreEmpresa) => {
           if (totalCantPend > 0) {
             const primerStock = items[0];
+            const provConsolidado = this.filterDataService.obtenerProveedorConsolidado(registro.prov);
             itemsProcesados.push({
               prod_id: {
-                prov_id: registro.prov || primerStock?.prod_id?.prov_id || '',
+                prov_id: provConsolidado || registro.prov || primerStock?.prod_id?.prov_id || '',
                 grupo_id: registro.grupo || primerStock?.prod_id?.grupo_id || '',
                 linea_id: registro.linea || primerStock?.prod_id?.linea_id || '',
                 tipo: registro.tipo_producto || primerStock?.prod_id?.tipo || '',
@@ -405,7 +425,7 @@ export class InventoryComponent implements OnInit, OnDestroy {
       this.exportProgressGeneral.set(100);
 
       const excelRows = allData.map((item: any) => ({
-        'PROVEEDOR': item.prov || '',
+        'PROVEEDOR': this.filterDataService.obtenerProveedorConsolidado(item.prov) || item.prov || '',
         'GRUPO': item.grupo || '',
         'LINEA': item.linea || '',
         'TIPO': item.tipo_producto || '',
@@ -553,13 +573,14 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
         let sumaGrupo = 0;
 
-        // 1. Agregar filas individuales de stock físico
+        // 1. Agregar filas individuales de stock físico o stock cero
         itemsGrupoExcel.forEach((item: any) => {
           if (item.stock > 0) {
             sumaGrupo += item.stock;
           }
+          const provConsolidado = this.filterDataService.obtenerProveedorConsolidado(item.prod_id?.prov_id) || item.prod_id?.prov_id || '';
           excelRows.push({
-            'PROVEEDOR': item.prod_id?.prov_id || '',
+            'PROVEEDOR': provConsolidado,
             'GRUPO': item.prod_id?.grupo_id || '',
             'LINEA': item.prod_id?.linea_id || '',
             'TIPO': item.prod_id?.tipo || '',
@@ -589,8 +610,9 @@ export class InventoryComponent implements OnInit, OnDestroy {
             if (totalCantPend > 0) {
               sumaGrupo += totalCantPend;
               const primerStock = items[0];
+              const provConsolidado = this.filterDataService.obtenerProveedorConsolidado(registro.prov);
               excelRows.push({
-                'PROVEEDOR': registro.prov || primerStock?.prod_id?.prov_id || '',
+                'PROVEEDOR': provConsolidado || registro.prov || primerStock?.prod_id?.prov_id || '',
                 'GRUPO': registro.grupo || primerStock?.prod_id?.grupo_id || '',
                 'LINEA': registro.linea || primerStock?.prod_id?.linea_id || '',
                 'TIPO': registro.tipo_producto || primerStock?.prod_id?.tipo || '',

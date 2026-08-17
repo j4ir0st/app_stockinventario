@@ -14,13 +14,14 @@ export class FilterDataService {
   private apiService = inject(ApiService);
 
   public proveedores = signal<string[]>([]);
+  public proveedoresObjetos = signal<{ nombre: string; consolidado: string }[]>([]);
   public grupos = signal<string[]>([]);
   public lineas = signal<string[]>([]);
   public depositos = signal<string[]>([]);
   public empresas = signal<{ id: number; empresa: string }[]>([]);
   public loading = signal(false);
 
-  private readonly CACHE_KEY = 'SURGICORP_FILTERS_CACHE_V2';
+  private readonly CACHE_KEY = 'SURGICORP_FILTERS_CACHE_V3';
   private readonly CACHE_DAYS = 7;
 
   constructor() {
@@ -37,6 +38,7 @@ export class FilterDataService {
       localStorage.removeItem(this.CACHE_KEY);
       // Limpiar señales para que la UI sepa que se están recargando
       this.proveedores.set([]);
+      this.proveedoresObjetos.set([]);
       this.grupos.set([]);
       this.lineas.set([]);
       this.depositos.set([]);
@@ -62,6 +64,7 @@ export class FilterDataService {
 
       if (diffDays < this.CACHE_DAYS) {
         this.proveedores.set(data.proveedores || []);
+        this.proveedoresObjetos.set(data.proveedoresObjetos || []);
         this.grupos.set(data.grupos || []);
         this.lineas.set(data.lineas || []);
         this.empresas.set(data.empresas || []);
@@ -85,8 +88,8 @@ export class FilterDataService {
     console.log(`Cargando listas de filtros desde API (BypassCache: ${bypassCache})...`);
 
     try {
-      const [provs, grps, lins, empresasCompletas] = await Promise.all([
-        this.fetchAllRecords('SI_Proveedor/', 'consolidado', bypassCache),
+      const [provsCompletos, grps, lins, empresasCompletas] = await Promise.all([
+        this.fetchProveedoresCompletos(bypassCache),
         this.fetchAllRecords('SI_Grupo/', 'nombre', bypassCache),
         this.fetchAllRecords('SI_Linea/', 'nombre', bypassCache),
         this.fetchEmpresasCompletas(bypassCache)
@@ -97,18 +100,26 @@ export class FilterDataService {
         return [...new Set(lista.filter(i => i && i.trim() !== '').map(i => i.trim()))].sort();
       };
 
-      const uniqueProvs = limpiarLista(provs);
+      const provsNombres = provsCompletos.map(p => p.consolidado);
+      const uniqueProvs = limpiarLista(provsNombres);
       const uniqueGrps = limpiarLista(grps);
       const uniqueLins = limpiarLista(lins);
 
       this.proveedores.set(uniqueProvs);
+      this.proveedoresObjetos.set(provsCompletos);
       this.grupos.set(uniqueGrps);
       this.lineas.set(uniqueLins);
       this.empresas.set(empresasCompletas);
 
       // Guardar en caché con el timestamp actual
       localStorage.setItem(this.CACHE_KEY, JSON.stringify({
-        data: { proveedores: uniqueProvs, grupos: uniqueGrps, lineas: uniqueLins, empresas: empresasCompletas },
+        data: {
+          proveedores: uniqueProvs,
+          proveedoresObjetos: provsCompletos,
+          grupos: uniqueGrps,
+          lineas: uniqueLins,
+          empresas: empresasCompletas
+        },
         timestamp: Date.now()
       }));
 
@@ -279,6 +290,87 @@ export class FilterDataService {
     const lista = this.empresas();
     const encontrada = lista.find(e => e.id === idNum);
     return encontrada ? encontrada.empresa : String(empresaId);
+  }
+
+  /**
+   * Carga todos los registros de la tabla SI_Proveedor para guardar el mapeo nombre → consolidado.
+   * @param bypassCache Si es true, añade timestamp para evitar caché del navegador.
+   */
+  private async fetchProveedoresCompletos(bypassCache = false): Promise<{ nombre: string; consolidado: string }[]> {
+    const resultados: { nombre: string; consolidado: string }[] = [];
+    let nextUrl: string | null = `SI_Proveedor/?top=1000`;
+
+    if (bypassCache) {
+      nextUrl += `&_t=${Date.now()}`;
+    }
+
+    while (nextUrl) {
+      try {
+        const res: any = await firstValueFrom(this.apiService.get<any>(nextUrl));
+        if (!res) break;
+
+        const results = res.results || (Array.isArray(res) ? res : []);
+        results.forEach((item: any) => {
+          if (item.nombre || item.consolidado) {
+            resultados.push({
+              nombre: (item.nombre || '').trim(),
+              consolidado: (item.consolidado || item.nombre || '').trim()
+            });
+          }
+        });
+
+        nextUrl = res.next || null;
+        if (nextUrl && bypassCache && !nextUrl.includes('_t=')) {
+          nextUrl += (nextUrl.includes('?') ? '&' : '?') + `_t=${Date.now()}`;
+        }
+      } catch (e) {
+        console.error('Error al cargar tabla SI_Proveedor:', e);
+        break;
+      }
+    }
+
+    console.log(`Tabla SI_Proveedor cargada: ${resultados.length} proveedores.`);
+    return resultados;
+  }
+
+  /**
+   * Obtiene el nombre consolidado del proveedor a partir de su nombre en la tabla SI_Transito.
+   * Contrasta SI_Transito.prov con SI_Proveedor.nombre.
+   * @param nombreProv Nombre del proveedor proveniente de tránsito (SI_Transito.prov).
+   */
+  public obtenerProveedorConsolidado(nombreProv: string | undefined | null): string {
+    if (!nombreProv) return '';
+    const norm = nombreProv.trim().toLowerCase();
+    const lista = this.proveedoresObjetos();
+
+    if (lista.length === 0) {
+      return nombreProv;
+    }
+
+    // 1. Coincidencia exacta por nombre (case-insensitive)
+    let encontrado = lista.find(p => p.nombre && p.nombre.trim().toLowerCase() === norm);
+
+    // 2. Coincidencia si norm coincide con el campo consolidado directamente
+    if (!encontrado) {
+      encontrado = lista.find(p => p.consolidado && p.consolidado.trim().toLowerCase() === norm);
+    }
+
+    // 3. Coincidencia ignorando signos de puntuación y espacios (puntos, comas, etc.)
+    if (!encontrado) {
+      const normLimpio = norm.replace(/[^a-z0-9]/g, '');
+      encontrado = lista.find(p => p.nombre && p.nombre.trim().toLowerCase().replace(/[^a-z0-9]/g, '') === normLimpio);
+    }
+
+    // 4. Coincidencia parcial (subcadena o inicio de palabra)
+    if (!encontrado) {
+      encontrado = lista.find(p => {
+        if (!p.nombre) return false;
+        const pNorm = p.nombre.trim().toLowerCase();
+        return pNorm.length >= 3 && (norm.includes(pNorm) || pNorm.includes(norm));
+      });
+    }
+
+    return (encontrado && encontrado.consolidado) ? encontrado.consolidado : nombreProv;
   }
 
 }
