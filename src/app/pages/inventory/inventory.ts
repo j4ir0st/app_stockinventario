@@ -95,8 +95,8 @@ export class InventoryComponent implements OnInit, OnDestroy {
 
     // Ordenar en memoria sin hacer consultas adicionales al servidor
     return [...items].sort((a, b) => {
-      const fechaA = new Date(a.fecha_movimiento || 0).getTime();
-      const fechaB = new Date(b.fecha_movimiento || 0).getTime();
+      const fechaA = new Date(a.fecha_venc || 0).getTime();
+      const fechaB = new Date(b.fecha_venc || 0).getTime();
       return this.ordenFechaAscendente() ? fechaA - fechaB : fechaB - fechaA;
     });
   });
@@ -787,9 +787,9 @@ export class InventoryComponent implements OnInit, OnDestroy {
         if (agregado.has(clave)) {
           const existente = agregado.get(clave);
           existente.cantidad += cantidadActual;
-          // Conservar los datos del registro con la fecha más reciente
-          const fechaExistente = new Date(existente.fecha_movimiento || 0);
-          const fechaNueva = new Date(reg.fecha_movimiento || 0);
+          // Conservar los datos del registro con la fecha de vencimiento más reciente
+          const fechaExistente = new Date(existente.fecha_venc || existente.fecha_movimiento || 0);
+          const fechaNueva = new Date(reg.fecha_venc || reg.fecha_movimiento || 0);
           if (fechaNueva > fechaExistente) {
             agregado.set(clave, { ...reg, cantidad: existente.cantidad });
           }
