@@ -352,7 +352,7 @@
                 <th>
                   <span class="th-ordenable" (click)="toggleOrdenFecha()"
                     [title]="'Al dar click se ordena de manera ascendente o descendente (' + (ordenFechaAscendente() ? 'Ascendente' : 'Descendente') + ')'">
-                    Fecha Vencimiento
+                    {{ mostrarKardexOriginal() ? 'Fecha Movimiento' : 'Fecha Vencimiento' }}
                     <i class="fas fa-arrow-down icono-orden" [class.ascendente]="ordenFechaAscendente()"></i>
                   </span>
                 </th>
@@ -381,8 +381,10 @@
                 </td>
                 @if (mostrarKardexOriginal()) {
                 <td>{{ reg.documento || '—' }}</td>
-                }
+                <td class="fecha-celda">{{ reg.fecha_movimiento ? (reg.fecha_movimiento | date:'dd/MM/yyyy') : '—' }}</td>
+                } @else {
                 <td class="fecha-celda">{{ reg.fecha_venc ? (reg.fecha_venc | date:'dd/MM/yyyy') : '—' }}</td>
+                }
                 <td>{{ reg.nombre_deposito }}</td>
                 <td class="cantidad-celda">
                   <span class="badge" [class.badge-success]="reg.cantidad > 0" [class.badge-danger]="reg.cantidad <= 0">

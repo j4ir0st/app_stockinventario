@@ -94,9 +94,10 @@ export class InventoryComponent implements OnInit, OnDestroy {
     }
 
     // Ordenar en memoria sin hacer consultas adicionales al servidor
+    const esKardex = this.mostrarKardexOriginal();
     return [...items].sort((a, b) => {
-      const fechaA = new Date(a.fecha_venc || 0).getTime();
-      const fechaB = new Date(b.fecha_venc || 0).getTime();
+      const fechaA = new Date((esKardex ? a.fecha_movimiento : a.fecha_venc) || 0).getTime();
+      const fechaB = new Date((esKardex ? b.fecha_movimiento : b.fecha_venc) || 0).getTime();
       return this.ordenFechaAscendente() ? fechaA - fechaB : fechaB - fechaA;
     });
   });
